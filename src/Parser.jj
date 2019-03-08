@@ -1,4 +1,4 @@
-
+/* 
 options {
   LOOKAHEAD = 1;
   CHOICE_AMBIGUITY_CHECK = 2;
@@ -17,7 +17,7 @@ options {
   BUILD_TOKEN_MANAGER = true;
   SANITY_CHECK = true;
   FORCE_LA_CHECK = false;
-}
+} */
 
 PARSER_BEGIN(Parser)
 
@@ -26,8 +26,8 @@ public class Parser {
 
   /** Main entry point. */
   public static void main(String args[]) throws ParseException {
-    Parser parser = new Parser(System.in);
-    parser.Input();
+    /* Parser parser = new Parser(System.in);
+    parser.Input(); */
   }
 
 }
@@ -35,15 +35,16 @@ public class Parser {
 PARSER_END(Parser)
 
 /** Root production. */
-void Input() :
+/* void Input() :
 {}
 {
   MatchedBraces() ("\n"|"\r")* <EOF>
 }
-
+ */
 /** Brace matching production. */
-void MatchedBraces() :
+/* void MatchedBraces() :
 {}
 {
   "{" [ MatchedBraces() ] "}"
 }
+ */
