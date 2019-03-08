@@ -1,4 +1,8 @@
-/* 
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+/*
 options {
   LOOKAHEAD = 1;
   CHOICE_AMBIGUITY_CHECK = 2;
@@ -21,30 +25,44 @@ options {
 
 PARSER_BEGIN(Parser)
 
-/** Simple brace matcher. */
 public class Parser {
-
-  /** Main entry point. */
+  
   public static void main(String args[]) throws ParseException {
-    /* Parser parser = new Parser(System.in);
-    parser.Input(); */
+    var testfile = new FileInputStream("testfile.java");
+    Parser parser = new Parser(testfile);
+    parser.Input();
   }
 
 }
 
 PARSER_END(Parser)
 
+SKIP :
+{
+  " "
+| "\t"
+| "\n"
+| "\r"
+}
+
+TOKEN :
+{
+  <LBRACE: "{">
+| <RBRACE: "}">
+}
+
 /** Root production. */
-/* void Input() :
-{}
+void Input() :
+{ int count; }
 {
-  MatchedBraces() ("\n"|"\r")* <EOF>
+  count=MatchedBraces() <EOF>
+  { System.out.println("The levels of nesting is " + count); }
 }
- */
-/** Brace matching production. */
-/* void MatchedBraces() :
-{}
+
+/** Brace counting production. */
+int MatchedBraces() :
+{ int nested_count=0; }
 {
-  "{" [ MatchedBraces() ] "}"
+  <LBRACE> [ nested_count=MatchedBraces() ] <RBRACE>
+  { return ++nested_count; }
 }
- */
