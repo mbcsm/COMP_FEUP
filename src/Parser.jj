@@ -28,15 +28,29 @@ PARSER_BEGIN(Parser)
 public class Parser {
   
   public static void main(String args[]) throws ParseException {
-    var testfile = new FileInputStream("testfile.java");
-    Parser parser = new Parser(testfile);
-    parser.Input();
+
+    System.out.println("JavaCC Parser:  Reading from file " + "testfile.java" + " . . .");
+    try {
+      parser = new JavaCCParser(new java.io.FileInputStream("testfile.java"));
+    } catch (java.io.FileNotFoundException e) {
+      System.out.println("JavaCC Parser:  File " + "testfile.java" + " not found.");
+      return;
+    }
+    try {
+      parser.javacc_input();
+      System.out.println("JavaCC Parser:  Java program parsed successfully.");
+    } catch (ParseException e) {
+      System.out.println(e.getMessage());
+      System.out.println("JavaCC Parser:  Encountered errors during parse.");
+    }
+    
   }
 
 }
 
 PARSER_END(Parser)
 
+/* SKIP (.ignore) */
 SKIP :
 {
   " "
@@ -45,10 +59,111 @@ SKIP :
 | "\r"
 }
 
-TOKEN :
+/* GRAMMAR RULES */
+void PROGRAM(): {}
 {
-  <LBRACE: "{">
-| <RBRACE: "}">
+  PROGRAM() <EOF>
+}
+void CLASSDEC(): {}
+{
+  <CLASS> <IDENT> (<EXTENDS> | <IDENT>) <LBRACE> (VARDEC())* (<MAINDEC> | <METHODDEC>)* <RBRACE>
+}
+void VARDEC(): {}
+{
+  TYPE() <IDENT> <SEMICOLON>
+}
+void VARDECLIST(): {}
+{
+  TYPE() <IDENT> (<COMMA> TYPE() <IDENT>)*
+}
+void MAINDEC(): {}
+{
+  <PUBLIC> <STATIC> <VOID> <MAIN> <LPARENTHESIS> <STRING> <BRACKETS> <IDENT> <RPARENTHESIS> <LBRACE>
+  (VARDEC())* (<STATEMENT>)* <RBRACE>
+}
+void METHODDEC(): {}
+{
+  <PUBLIC> TYPE() <IDENT> <LPARENTHESIS> (VARDECLIST())? <RPARENTHESIS> <LBRACE>
+  (VARDEC())* (<STATEMENT>)* <RETURN> <EXPRESSION> <SEMICOLON> <RBRACE>
+}
+void TYPE(): {}
+{
+  (("int" (<BRACKETS>)?) | "boolean" | <IDENT>)
+}
+void STATEMENT(): {}
+{
+  (  (<LBRACE> (STATEMENT())* <RBRACE>)
+  | (<IF> <LPARENTHESIS> <EXPRESSION> <RPARENTHESIS> STATEMENT() <ELSE> STATEMENT())
+  | (<WHILE> <LPARENTHESIS> <EXPRESSION> <RPARENTHESIS> STATEMENT())
+  | (<EXPRESSION> <SEMICOLON>)
+  | (<IDENT> (SINGLE() | ARRAY()))
+  )
+}
+void SINGLE(): {}
+{
+  <ASSIGN> <EXPRESSION> <SEMICOLON>
+}
+void ARRAY(): {}
+{
+  <LBRACE> <EXPRESSION> <RBRACE> <ASSIGN> <EXPRESSION> <SEMICOLON>
+}
+
+/* TOKENS (TERMINALS) */
+TOKEN : 
+{
+  <CLASS: "class">    | <EXTENDS: "extends">  | 
+  <PUBLIC: "public">  | <STATIC: "public">    | 
+  <VOID: "void">      | <MAIN: "main">        |
+  <RETURN: "return">  |
+ 
+  <STRING: "string"> |
+
+  <IF : "if"> | <ELSE | "else"> | <WHILE : "while"> |
+
+  <ASSIGN : "="> |
+
+  <LBRACE: "{"> |  <RBRACE: "}"> | 
+  <LPARENTHESIS: "("> | <RPARENTHESIS: ")"> |
+  <BRACKETS: "[]"> | <SEMICOLON: ";"> | <COMMA: ",">
+  <IDENT: "a-z",{"0-9a-zA-Z"}> |
+  <OP: "+"|"-"|"*"|"/"> |
+  <CMP: "<"|"&&">
+
+}
+
+/* COMMENTS */
+
+MORE :
+{
+  "//" : IN_SINGLE_LINE_COMMENT
+|
+  <"/**" ~["/"]> { input_stream.backup(1); } : IN_FORMAL_COMMENT
+|
+  "/*" : IN_MULTI_LINE_COMMENT
+}
+
+<IN_SINGLE_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <SINGLE_LINE_COMMENT: "\n" | "\r" | "\r\n" > : DEFAULT
+}
+
+<IN_FORMAL_COMMENT>
+SPECIAL_TOKEN :
+{
+  <FORMAL_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_MULTI_LINE_COMMENT>
+SPECIAL_TOKEN :
+{
+  <MULTI_LINE_COMMENT: "*/" > : DEFAULT
+}
+
+<IN_SINGLE_LINE_COMMENT,IN_FORMAL_COMMENT,IN_MULTI_LINE_COMMENT>
+MORE :
+{
+  < ~[] >
 }
 
 /** Root production. */
