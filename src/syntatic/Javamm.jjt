@@ -1,0 +1,485 @@
+options {
+ LOOKAHEAD=1;
+ MULTI=true;
+}
+
+PARSER_BEGIN(Javamm)
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+
+public class Javamm
+{
+    public static void main(String args[]) throws ParseException, FileNotFoundException {
+        try
+        {
+            Javamm javamm = new Javamm(new FileInputStream(args[0]));
+            SimpleNode root = javamm.Module();
+            root.dump("");
+        }
+
+        catch (FileNotFoundException ex)
+        {
+            // insert code to run when exception occurs
+        }
+    }
+}
+
+PARSER_END(Javamm)
+
+TOKEN: // RESERVED WORDS AND SYMBOLS
+{
+<NEW: "new">
+ | <WHILE: "while">
+ | <IF: "if">
+ | <ELSE: "else">
+ | <THIS: "this">
+ | <INT: "int">
+ | <TRUE: "true">
+ | <FALSE: "false">
+ | <CLASS: "class">
+ | <PUBLIC: "public">
+ | <LENGTH: "length">
+ | <RETURN: "return">
+ | <BOOLEAN: "boolean">
+ | <EXTENDS: "extends">
+ | <VOID: "void">
+ | <MAIN: "main">
+ | <STATIC: "static">
+ | <STRINGLIT: "String">
+ | <SLASH: "\"">
+ | <LPAR: "(">
+ | <RPAR: ")">
+ | <COMMA: ",">
+ | <SEMICOLON: ";">
+ | <LBRACE: "{">
+ | <RBRACE: "}">
+ | <RECTBRACEL: "[">
+ | <RECTBRACER: "]">
+ | <DOT: ".">
+ | <PLUS: "+">
+ | <MINUS: "-">
+ | <MULT: "*">
+ | <DIV: "/">
+ | <LESS: "<">
+ | <AND : "&&">
+ | <ASSIGN : "=">
+
+}
+
+SKIP :
+{
+" " | "\r" | "\t" | "\n" | <"#" (~["\n","\r"])* ("\n" | "\r" | "\r\n")> | <"//" (~["\n","\r"])* ("\n" | "\r" | "\r\n")>
+}
+
+TOKEN:
+{   // IDENTIFIERS
+ < IDENTIFIER : <LETTER> (<LETTER> | <DIGIT>)* >
+ | < #LETTER : ["$","A"-"Z","_","a"-"z"] >
+ | < #DIGIT : ["0"-"9"] >
+ | < INTEGERLITERAL : "0" | (["1"-"9"] (<DIGIT>)*) >
+ | <STRING: "\"" (["a"-"z","A"-"Z","0"-"9",":"," ","="])+ "\"">
+}
+
+SimpleNode Module() : {}
+{
+    ClassDeclaration() <EOF> {return jjtThis;}
+}
+
+void ClassDeclaration() : {Token t1, t2;}
+{
+    <CLASS>
+t1=<IDENTIFIER>
+ {
+    jjtThis.className = t1.image;
+ }
+
+ (<EXTENDS>
+
+ t2=<IDENTIFIER>
+ {
+    jjtThis.extension = t2.image;
+ }
+ )?
+
+ <LBRACE> (VarDeclaration())*
+ ( <PUBLIC> (MainDeclaration() | MethodDeclaration()) )* <RBRACE>
+}
+
+void VarDeclaration() : {Token t1;}
+{
+ Type()
+
+ t1=<IDENTIFIER>
+ {
+    jjtThis.varName = t1.image;
+ }
+
+ <SEMICOLON>
+}
+
+void MainDeclaration() : {Token t1;}
+{
+ <STATIC> <VOID> <MAIN>
+
+ <LPAR> <STRINGLIT> <RECTBRACEL> <RECTBRACER>
+
+ t1=<IDENTIFIER> {
+     jjtThis.args = t1.image;
+ }
+
+  <RPAR>
+
+ <LBRACE> (LOOKAHEAD(2) VarDeclaration())* (Statement())* <RBRACE>
+}
+
+void MethodDeclaration() : {Token t1;}
+{
+  Type()
+
+  t1=<IDENTIFIER>
+  {
+    jjtThis.methodName = t1.image;
+  }
+
+  <LPAR> MethodArguments() <RPAR>
+ <LBRACE> (LOOKAHEAD(2) VarDeclaration())* (Statement())*
+  Return() <RBRACE>
+}
+
+void MethodArguments() : {Token t;}
+{
+    (
+
+    Type()
+
+    t=<IDENTIFIER>
+    {
+        jjtThis.identifier = t.image;
+    }
+
+    (<COMMA> MethodArgumentPiece())*
+
+    )?
+}
+
+void MethodArgumentPiece() : {Token t1;}
+{
+    Type()
+
+    t1=<IDENTIFIER>
+    {
+        jjtThis.name = t1.image;
+    }
+}
+
+void Return() : {Token t1, t2;}
+{
+    <RETURN> (LOOKAHEAD(2) t1=<IDENTIFIER>{jjtThis.identifier = t1.image;} | LOOKAHEAD(2) t2=<INTEGERLITERAL>{jjtThis.val = Integer.parseInt(t2.image);} | Expression()) <SEMICOLON>
+}
+
+void Type() : {Token t1, t2;}
+{
+ t1 = <INT> {
+    jjtThis.type = t1.image;
+ }
+
+ (
+    t2 = <RECTBRACEL> {
+        if(t2.image != null){
+            jjtThis.isArray = true;
+        }
+    }
+
+     <RECTBRACER>
+
+ )?
+
+
+ | t1 = <BOOLEAN> {
+     jjtThis.type = t1.image;
+ }
+
+ | t1 = <IDENTIFIER> {
+    jjtThis.type = t1.image;
+ }
+}
+
+void Statement() : {Token t1, t2, t3;}
+{
+
+ StatementBody()
+
+ |
+
+ StatementIf()
+
+ | <WHILE> #While
+    try
+    {
+        <LPAR> Expression() <RPAR>
+    }
+    catch(ParseException e)
+    {
+        error_skip_while(RPAR,RBRACE);
+    }
+
+    Statement()
+
+ | LOOKAHEAD(2) FunctionCall()
+
+ | LOOKAHEAD(2) Expression() <SEMICOLON>
+
+ | LOOKAHEAD(2) AttributionHead() (<ASSIGN> Expression() #Attribution(2) <SEMICOLON> | <RECTBRACEL> Expression() <RECTBRACER> <ASSIGN> Expression() <SEMICOLON>)
+}
+
+void FunctionCall() : {Token t1, t2;}
+{
+	t1=<IDENTIFIER>
+	{
+		jjtThis.function = t1.image;
+	}
+
+	(<DOT>
+
+	t2=<IDENTIFIER>
+	{
+		jjtThis.module = t2.image;
+	})?
+
+	<LPAR> (ArgumentList())? <RPAR>
+
+	 <SEMICOLON>
+}
+
+void NewArgumentFunctionCall() : {Token t1, t2;}
+{
+	<NEW> t1=<IDENTIFIER>{jjtThis.function = t1.image;} <LPAR> (ArgumentList())? <RPAR>
+
+	<DOT>
+
+	t2=<IDENTIFIER>
+	{
+		jjtThis.module = t2.image;
+	}
+
+	<LPAR> (ArgumentList())? <RPAR>
+}
+
+void ArgumentFunctionCall() : {Token t1, t2;}
+{
+	t1=<IDENTIFIER>
+	{
+		jjtThis.function = t1.image;
+	}
+
+	(<DOT>
+
+	t2=<IDENTIFIER>
+	{
+		jjtThis.module = t2.image;
+	}
+
+	)?
+
+	<LPAR> (ArgumentList())? <RPAR>
+}
+
+void ArgumentList() : {}
+{
+    Argument() ( <COMMA> Argument() )*
+}
+
+void Argument() : {Token s;}
+{
+    (LOOKAHEAD(2) ArgumentFunctionCall()
+    | NewArgumentFunctionCall()
+    | s=<IDENTIFIER> (ArgOperation())? {jjtThis.name = s.image; jjtThis.type = "ID";}
+    | s=<INTEGERLITERAL> (<MINUS><INTEGERLITERAL>)? {jjtThis.name = s.image; jjtThis.type = "Integer";}
+    | s=<STRINGLIT> {jjtThis.name = s.image; jjtThis.type = "String";})
+}
+
+void ArgOperation() : {}
+{
+	(<PLUS> | <MINUS> | <MULT> | <DIV>) <INTEGERLITERAL>
+}
+
+void StatementBody() #void: {}
+{
+    <LBRACE> (Statement())* <RBRACE>
+}
+
+void StatementIf() : {}
+{
+    <IF> <LPAR> Expression() <RPAR> Statement() Else()
+}
+
+void Else() : {}
+{
+	<ELSE> Statement()
+}
+
+void AttributionHead() : {Token t1;}
+{
+    t1=<IDENTIFIER>
+    {
+        jjtThis.name = t1.image;
+    }
+}
+
+void Expression()  : {}
+{
+ LOOKAHEAD(2) Arithm()
+ | <TRUE> #True
+ | <FALSE> #False
+ | <NEW> NewDeclarations()
+ | ExclamationMark()
+ | <LPAR> Expression() <RPAR>
+}
+
+void NewDeclarations() : {Token t1;}
+{
+    (<INT> <RECTBRACEL> Expression() <RECTBRACER>
+
+    |
+
+    t1=<IDENTIFIER>
+    {
+
+        jjtThis.name = t1.image;
+    }
+
+    <LPAR> <RPAR> (ExpressionMethod())? )
+}
+
+void Arithm() : {Token t1, t2;}
+{
+    ExpressionMult(1) (t2=<PLUS>{jjtThis.operator = t2.image;} ExpressionMult(1) #Add(2) | t1=<MINUS>{jjtThis.operator = t1.image;} ExpressionMult(1) #Sub(2))*
+}
+
+void ExpressionMult(int sign) : {Token t1, t2;}
+{
+    ExpressionCmp(sign) (t1=<MULT>{jjtThis.operator = t1.image;} ExpressionCmp(sign) #Mult(2) | t2=<DIV>{jjtThis.operator = t2.image;} ExpressionCmp(sign) #Div(2))*
+}
+
+void ExpressionCmp(int sign) : {Token t1, t2;}
+{
+    Term(sign) (t1=<LESS>{jjtThis.operator = t1.image;} Term(sign) #Less(2) | t2=<AND>{jjtThis.operator = t2.image;} Term(sign) #And(2))*
+}
+
+void Term(int sign) : {Token t;}
+{
+
+ (t=<INTEGERLITERAL> {
+  jjtThis.val = sign * Integer.parseInt(t.image);
+ }
+
+ |
+
+ t=<IDENTIFIER>
+ {
+
+    jjtThis.identifier = new String(t.image);
+    if(t.next != null){
+        if((t.next).image == "<RECTBRACEL>"){
+            ExpressionArray();
+        }
+    }
+
+ }
+
+ (ExpressionMethod())?
+
+ |
+
+ ThisCall()
+ )
+
+ | <MINUS> Term(-1)
+ | ParenthesisArithm()
+}
+
+void ThisCall() :  {Token t1;}
+{
+
+	 <THIS> <DOT>
+	 t1 = <IDENTIFIER> {
+	 	jjtThis.module = t1.image;
+	 }
+
+	 (
+		ThisFunctionCall()
+	 )?
+
+}
+
+void ThisFunctionCall() : {}
+{
+	<LPAR> (ArgumentList())? <RPAR>
+}
+
+void ParenthesisArithm() : {}
+{
+	<LPAR> Arithm() <RPAR>
+}
+
+void ExclamationMark() : {}
+{
+	"!" Expression()
+}
+
+void ExpressionArray() : {}
+{
+    <RECTBRACEL> Arithm() <RECTBRACER>
+}
+
+void ExpressionMethod() : {}
+{
+    <DOT> Methods()
+}
+
+void Methods() : {Token t1, t2;}
+{
+    (
+    t1 = <LENGTH>
+    {
+        jjtThis.module = t1.image;
+    }
+
+    |
+
+    t2=<IDENTIFIER>
+    {
+        jjtThis.module = t2.image;
+    }
+
+    ( <LPAR> (ArgumentList())? <RPAR> )?
+
+    )
+}
+
+JAVACODE
+void error_skipto(int kind) {
+    ParseException e = generateParseException();  // generate the exception object.
+    System.out.println(e.toString());  // print the error message
+    Token t;
+    do {
+        t = getNextToken();
+    } while (t.kind != kind);
+}
+
+
+JAVACODE
+void error_skip_while(int kind1, int kind2) {
+    boolean brace= false;
+    ParseException e = generateParseException();  // generate the exception object.
+    System.out.println(e.toString());  // print the error message
+    Token t;
+    do {
+        t = getNextToken();
+        if(t.kind==LBRACE)
+            brace=true;
+        if (t.kind==SEMICOLON && brace==false)
+            break;
+    } while (t.kind != kind1 && t.kind != kind2);
+}
