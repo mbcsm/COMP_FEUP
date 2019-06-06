@@ -4,7 +4,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
-import syntatic;
 
 public class CodeGenerator {
     static String motherClassName;
