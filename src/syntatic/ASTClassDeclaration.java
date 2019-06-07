@@ -18,7 +18,7 @@ public class ASTClassDeclaration extends SimpleNode {
   }
 
   public String toString() {
-    return "class" + " " + this.className + " " + this.extension;
+    return "class " + this.className + " " + this.extension;
   }
 }
 /*

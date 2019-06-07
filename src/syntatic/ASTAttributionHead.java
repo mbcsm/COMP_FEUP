@@ -16,36 +16,36 @@ public class ASTAttributionHead extends SimpleNode {
 
   @Override
   public String getType() throws SemanticException {
-    for (String key : SymbolTable.localVariablesTable.keySet()) {
-      HashMap<String, Symbol> templocalVariablesTable = SymbolTable.localVariablesTable.get(key);
-      for (String keyb : templocalVariablesTable.keySet()) {
-        if (templocalVariablesTable.get(name) == null)
+    for (String key : SymbolTable.localVariables.keySet()) {
+      HashMap<String, Symbol> tempLocalVariables = SymbolTable.localVariables.get(key);
+      for (String _key : tempLocalVariables.keySet()) {
+        if (tempLocalVariables.get(name) == null)
           break;
-        if (templocalVariablesTable.get(name).name.equals(name)) {
-          return templocalVariablesTable.get(name).getType();
+        if (tempLocalVariables.get(name).name.equals(name)) {
+          return tempLocalVariables.get(name).getType();
         }
       }
     }
 
-    for (String keyb : SymbolTable.classVariablesTable.keySet()) {
-      if (SymbolTable.classVariablesTable.get(name) == null)
+    for (String _key : SymbolTable.classVariables.keySet()) {
+      if (SymbolTable.classVariables.get(name) == null)
         break;
-      if (SymbolTable.classVariablesTable.get(name).name.equals(name)) {
-        return SymbolTable.classVariablesTable.get(name).getType();
+      if (SymbolTable.classVariables.get(name).name.equals(name)) {
+        return SymbolTable.classVariables.get(name).getType();
       }
     }
 
-    for (String key : SymbolTable.parametersTable.keySet()) {
-      HashMap<String, Symbol> tempparametersTable = SymbolTable.parametersTable.get(key);
-      for (String keyb : tempparametersTable.keySet()) {
-        if (tempparametersTable.get(name) == null)
+    for (String key : SymbolTable.parameters.keySet()) {
+      HashMap<String, Symbol> tempParameters = SymbolTable.parameters.get(key);
+      for (String _key : tempParameters.keySet()) {
+        if (tempParameters.get(name) == null)
           break;
-        if (tempparametersTable.get(name).name.equals(name)) {
-          return tempparametersTable.get(name).getType();
+        if (tempParameters.get(name).name.equals(name)) {
+          return tempParameters.get(name).getType();
         }
       }
     }
-    throw new SemanticException("Variable \"" + name + "\" not defined.");
+    throw new SemanticException("Variable <" + name + "> not defined.");
   }
 
   public String toString() {

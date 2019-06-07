@@ -130,17 +130,9 @@ void ClassDeclaration() : {/*@bgen(jjtree) ClassDeclaration */
     try {
 /*@egen*/
     <CLASS>
-t1=<IDENTIFIER>
- {
-    jjtn000.className = t1.image;
- }
-
+t1=<IDENTIFIER> { jjtn000.className = t1.image; }
  (<EXTENDS>
-
- t2=<IDENTIFIER>
- {
-    jjtn000.extension = t2.image;
- }
+ t2=<IDENTIFIER> { jjtn000.extension = t2.image;}
  )?
 
  <LBRACE> (VarDeclaration())*
@@ -177,10 +169,7 @@ void VarDeclaration() : {/*@bgen(jjtree) VarDeclaration */
 /*@egen*/
  Type()
 
- t1=<IDENTIFIER>
- {
-    jjtn000.varName = t1.image;
- }
+ t1=<IDENTIFIER> { jjtn000.varName = t1.image;}
 
  <SEMICOLON>/*@bgen(jjtree)*/
  } catch (Throwable jjte000) {
@@ -217,10 +206,7 @@ void MainDeclaration() : {/*@bgen(jjtree) MainDeclaration */
 
  <LPAR> <STRINGLIT> <RECTBRACEL> <RECTBRACER>
 
- t1=<IDENTIFIER> {
-     jjtn000.args = t1.image;
- }
-
+ t1=<IDENTIFIER> { jjtn000.args = t1.image;}
   <RPAR>
 
  <LBRACE> (LOOKAHEAD(2) VarDeclaration())* (Statement())* <RBRACE>/*@bgen(jjtree)*/
@@ -255,11 +241,8 @@ void MethodDeclaration() : {/*@bgen(jjtree) MethodDeclaration */
   try {
 /*@egen*/
   Type()
-
   t1=<IDENTIFIER>
-  {
-    jjtn000.methodName = t1.image;
-  }
+  { jjtn000.methodName = t1.image;}
 
   <LPAR> MethodArguments() <RPAR>
  <LBRACE> (LOOKAHEAD(2) VarDeclaration())* (Statement())*
@@ -295,13 +278,9 @@ void MethodArguments() : {/*@bgen(jjtree) MethodArguments */
     try {
 /*@egen*/
     (
-
     Type()
-
     t=<IDENTIFIER>
-    {
-        jjtn000.identifier = t.image;
-    }
+    { jjtn000.identifier = t.image; }
 
     (<COMMA> MethodArgumentPiece())*
 
@@ -459,9 +438,7 @@ void Statement() : {/*@bgen(jjtree) Statement */
 /*@egen*/
 
  StatementBody()
-
  |
-
  StatementIf()
 
  |/*@bgen(jjtree) While */
@@ -551,18 +528,10 @@ void FunctionCall() : {/*@bgen(jjtree) FunctionCall */
 {/*@bgen(jjtree) FunctionCall */
         try {
 /*@egen*/
-	t1=<IDENTIFIER>
-	{
-		jjtn000.function = t1.image;
-	}
+	t1=<IDENTIFIER> { jjtn000.function = t1.image; }
 
 	(<DOT>
-
-	t2=<IDENTIFIER>
-	{
-		jjtn000.module = t2.image;
-	})?
-
+	t2=<IDENTIFIER> {	jjtn000.module = t2.image; })?
 	<LPAR> (ArgumentList())? <RPAR>
 
 	 <SEMICOLON>/*@bgen(jjtree)*/
@@ -597,13 +566,8 @@ void NewArgumentFunctionCall() : {/*@bgen(jjtree) NewArgumentFunctionCall */
         try {
 /*@egen*/
 	<NEW> t1=<IDENTIFIER>{jjtn000.function = t1.image;} <LPAR> (ArgumentList())? <RPAR>
-
 	<DOT>
-
-	t2=<IDENTIFIER>
-	{
-		jjtn000.module = t2.image;
-	}
+	t2=<IDENTIFIER> { jjtn000.module = t2.image; }
 
 	<LPAR> (ArgumentList())? <RPAR>/*@bgen(jjtree)*/
         } catch (Throwable jjte000) {
@@ -636,18 +600,10 @@ void ArgumentFunctionCall() : {/*@bgen(jjtree) ArgumentFunctionCall */
 {/*@bgen(jjtree) ArgumentFunctionCall */
         try {
 /*@egen*/
-	t1=<IDENTIFIER>
-	{
-		jjtn000.function = t1.image;
-	}
+	t1=<IDENTIFIER> { jjtn000.function = t1.image;}
 
 	(<DOT>
-
-	t2=<IDENTIFIER>
-	{
-		jjtn000.module = t2.image;
-	}
-
+	t2=<IDENTIFIER> {	jjtn000.module = t2.image;}
 	)?
 
 	<LPAR> (ArgumentList())? <RPAR>/*@bgen(jjtree)*/
@@ -773,7 +729,7 @@ void ArgOperation() : {/*@bgen(jjtree) ArgOperation */
 
 void StatementBody()      : {}
 {
-    <LBRACE> (Statement())* <RBRACE>
+  <LBRACE> (Statement())* <RBRACE>
 }
 
 void StatementIf() : {/*@bgen(jjtree) StatementIf */
@@ -934,14 +890,8 @@ void NewDeclarations() : {/*@bgen(jjtree) NewDeclarations */
     try {
 /*@egen*/
     (<INT> <RECTBRACEL> Expression() <RECTBRACER>
-
-    |
-
-    t1=<IDENTIFIER>
-    {
-
-        jjtn000.name = t1.image;
-    }
+  |
+    t1=<IDENTIFIER> { jjtn000.name = t1.image;}
 
     <LPAR> <RPAR> (ExpressionMethod())? )/*@bgen(jjtree)*/
     } catch (Throwable jjte000) {
@@ -1238,9 +1188,7 @@ void Term(int sign) : {/*@bgen(jjtree) Term */
 /*@egen*/ {
   jjtn000.val = sign * Integer.parseInt(t.image);
  }
-
  |
-
  t=<IDENTIFIER>
  {
 
@@ -1252,12 +1200,7 @@ void Term(int sign) : {/*@bgen(jjtree) Term */
     }
 
  }
-
- (ExpressionMethod())?
-
- |
-
- ThisCall()
+ (ExpressionMethod())? | ThisCall()
  )
 
  | <MINUS> Term(-1)
@@ -1294,9 +1237,7 @@ void ThisCall() :  {/*@bgen(jjtree) ThisCall */
 /*@egen*/
 
 	 <THIS> <DOT>
-	 t1 = <IDENTIFIER> {
-	 	jjtn000.module = t1.image;
-	 }
+	 t1 = <IDENTIFIER> { jjtn000.module = t1.image; }
 
 	 (
 		ThisFunctionCall()
@@ -1494,16 +1435,9 @@ void Methods() : {/*@bgen(jjtree) Methods */
       jjtc000 = false;
     }
 /*@egen*/
-    {
-        jjtn000.module = t1.image;
-    }
-
+    { jjtn000.module = t1.image; }
     |
-
-    t2=<IDENTIFIER>
-    {
-        jjtn000.module = t2.image;
-    }
+    t2=<IDENTIFIER> { jjtn000.module = t2.image; }
 
     ( <LPAR> (ArgumentList())? <RPAR> )?
 
@@ -1531,28 +1465,6 @@ void Methods() : {/*@bgen(jjtree) Methods */
 }
 
 JAVACODE
-void error_skipto(int kind) {/*@bgen(jjtree) error_skipto */
- ASTerror_skipto jjtn000 = new ASTerror_skipto(JJTERROR_SKIPTO);
- boolean jjtc000 = true;
- jjtree.openNodeScope(jjtn000);
- try {
-/*@egen*/
-    ParseException e = generateParseException();  // generate the exception object.
-    System.out.println(e.toString());  // print the error message
-    Token t;
-    do {
-        t = getNextToken();
-    } while (t.kind != kind);/*@bgen(jjtree)*/
- } finally {
-   if (jjtc000) {
-     jjtree.closeNodeScope(jjtn000, true);
-   }
- }
-/*@egen*/
-}
-
-
-JAVACODE
 void error_skip_while(int kind1, int kind2) {/*@bgen(jjtree) error_skip_while */
  ASTerror_skip_while jjtn000 = new ASTerror_skip_while(JJTERROR_SKIP_WHILE);
  boolean jjtc000 = true;
@@ -1560,8 +1472,8 @@ void error_skip_while(int kind1, int kind2) {/*@bgen(jjtree) error_skip_while */
  try {
 /*@egen*/
     boolean brace= false;
-    ParseException e = generateParseException();  // generate the exception object.
-    System.out.println(e.toString());  // print the error message
+    ParseException e = generateParseException();
+    System.out.println(e.toString());
     Token t;
     do {
         t = getNextToken();
@@ -1570,6 +1482,27 @@ void error_skip_while(int kind1, int kind2) {/*@bgen(jjtree) error_skip_while */
         if (t.kind==SEMICOLON && brace==false)
             break;
     } while (t.kind != kind1 && t.kind != kind2);/*@bgen(jjtree)*/
+ } finally {
+   if (jjtc000) {
+     jjtree.closeNodeScope(jjtn000, true);
+   }
+ }
+/*@egen*/
+}
+
+JAVACODE
+void error_skipto(int kind) {/*@bgen(jjtree) error_skipto */
+ ASTerror_skipto jjtn000 = new ASTerror_skipto(JJTERROR_SKIPTO);
+ boolean jjtc000 = true;
+ jjtree.openNodeScope(jjtn000);
+ try {
+/*@egen*/
+    ParseException e = generateParseException();
+    System.out.println(e.toString());
+    Token t;
+    do {
+        t = getNextToken();
+    } while (t.kind != kind);/*@bgen(jjtree)*/
  } finally {
    if (jjtc000) {
      jjtree.closeNodeScope(jjtn000, true);

@@ -22,9 +22,7 @@ public class ASTTerm extends SimpleNode {
 
     if (val != null) {
       return "" + val;
-    }
-
-    else
+    } else
       return "Term";
   }
 
@@ -35,9 +33,9 @@ public class ASTTerm extends SimpleNode {
     if (val == null && identifier == "")
       return "";
 
-    for (String key : SymbolTable.localVariablesTable.keySet()) {
-      HashMap<String, Symbol> templocalVariablesTable = SymbolTable.localVariablesTable.get(key);
-      for (String keyb : templocalVariablesTable.keySet()) {
+    for (String key : SymbolTable.localVariables.keySet()) {
+      HashMap<String, Symbol> templocalVariablesTable = SymbolTable.localVariables.get(key);
+      for (String _key : templocalVariablesTable.keySet()) {
         if (templocalVariablesTable.get(identifier) == null)
           break;
         if (templocalVariablesTable.get(identifier).name.equals(identifier)) {
@@ -46,17 +44,17 @@ public class ASTTerm extends SimpleNode {
       }
     }
 
-    for (String keyb : SymbolTable.classVariablesTable.keySet()) {
-      if (SymbolTable.classVariablesTable.get(identifier) == null)
+    for (String _key : SymbolTable.classVariables.keySet()) {
+      if (SymbolTable.classVariables.get(identifier) == null)
         break;
-      if (SymbolTable.classVariablesTable.get(identifier).name.equals(identifier)) {
-        return SymbolTable.classVariablesTable.get(identifier).getType();
+      if (SymbolTable.classVariables.get(identifier).name.equals(identifier)) {
+        return SymbolTable.classVariables.get(identifier).getType();
       }
     }
 
-    for (String key : SymbolTable.parametersTable.keySet()) {
-      HashMap<String, Symbol> tempparametersTable = SymbolTable.parametersTable.get(key);
-      for (String keyb : tempparametersTable.keySet()) {
+    for (String key : SymbolTable.parameters.keySet()) {
+      HashMap<String, Symbol> tempparametersTable = SymbolTable.parameters.get(key);
+      for (String _key : tempparametersTable.keySet()) {
         if (tempparametersTable.get(identifier) == null)
           break;
         if (tempparametersTable.get(identifier).name.equals(identifier)) {
@@ -64,7 +62,7 @@ public class ASTTerm extends SimpleNode {
         }
       }
     }
-    throw new SemanticException("Variable \"" + identifier + "\" not defined.");
+    throw new SemanticException("Variable <" + identifier + "> not defined.");
   }
 
 }

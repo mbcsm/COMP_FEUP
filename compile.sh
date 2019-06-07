@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 rm -r bin
 mkdir -p bin
 

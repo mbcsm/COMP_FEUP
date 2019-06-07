@@ -17,16 +17,16 @@ public class ASTMethodArguments extends SimpleNode {
     return "";
   }
 
-  public String toString() {
-    return "Argument (" + this.identifier + ")";
-  }
-
   public String getMethodArgumentName() {
     return identifier;
   }
 
   public String getMethodArgumentType() {
     return type;
+  }
+
+  public String toString() {
+    return "Argument (" + this.identifier + ")";
   }
 
 }

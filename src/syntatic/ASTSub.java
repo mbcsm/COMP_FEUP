@@ -19,7 +19,7 @@ public class ASTSub extends SimpleNode {
     return "-";
   }
 
-  public void otherSemanticAnalysis() throws SemanticException {
+  public void semanticAnalysis() throws SemanticException {
     SimpleNode first = (SimpleNode) jjtGetChild(0);
     SimpleNode second = (SimpleNode) jjtGetChild(1);
 
@@ -30,7 +30,7 @@ public class ASTSub extends SimpleNode {
       second = (SimpleNode) second.jjtGetChild(0);
     }
     if ((!first.getType().equals("int")) || (!second.getType().equals("int"))) {
-      throw new SemanticException("You have to sub 2 integers.");
+      throw new SemanticException("You must subtract 2 integers.");
     }
   }
 

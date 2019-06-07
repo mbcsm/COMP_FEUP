@@ -3,21 +3,17 @@ class Symbol {
     int register;
 
     Symbol(String name, String type) {
+        this.boolValue = "null";
         this.name = name;
         this.type = type;
-        this.boolValue = "null";
-    }
-
-    public String getType() {
-        return type;
     }
 
     public String getName() {
         return name;
     }
 
-    public int getRegister() {
-        return register;
+    public String getType() {
+        return type;
     }
 
     public void setBool(String bool) {
@@ -31,4 +27,9 @@ class Symbol {
     public void setRegister(int reg) {
         register = reg;
     }
+
+    public int getRegister() {
+        return register;
+    }
+
 }

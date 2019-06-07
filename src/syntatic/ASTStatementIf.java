@@ -9,13 +9,13 @@ public class ASTStatementIf extends SimpleNode {
     super(p, id);
   }
 
+  public String toString() {
+    return "Statement (If)";
+  }
+
   @Override
   public String getType() throws SemanticException {
     return "";
-  }
-
-  public String toString() {
-    return "Statement (If)";
   }
 }
 /*

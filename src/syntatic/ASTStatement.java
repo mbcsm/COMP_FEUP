@@ -21,9 +21,7 @@ public class ASTStatement extends SimpleNode {
 
     if (name != "") {
       return name;
-    }
-
-    else
+    } else
       return JavammTreeConstants.jjtNodeName[id];
   }
 

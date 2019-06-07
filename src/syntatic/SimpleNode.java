@@ -90,34 +90,28 @@ public class SimpleNode implements Node {
     }
   }
 
+  public void semanticAnalysis() throws SemanticException {
+    try {
+      if (children != null) {
+        for (int i = 0; i < children.length; i++) {
+          SimpleNode a = (SimpleNode) children[i];
+          if (a != null) {
+            a.semanticAnalysis();
+          }
+        }
+      }
+    } catch (SemanticException e) {
+
+      System.err.println("Semantic Exception: " + e.getMessage());
+    }
+  }
+
   public int getId() {
     return id;
   }
 
   public String getType() throws SemanticException {
     return "";
-  }
-
-  public void otherSemanticAnalysis() throws SemanticException {
-    // Will be overridden.
-  }
-
-  public void semanticAnalysis() {
-    try {
-      otherSemanticAnalysis();
-    } catch (SemanticException e) {
-
-      System.err.println("Semantic Exception: " + e.getMessage());
-    }
-
-    if (children != null) {
-      for (int i = 0; i < children.length; i++) {
-        SimpleNode a = (SimpleNode) children[i];
-        if (a != null) {
-          a.semanticAnalysis();
-        }
-      }
-    }
   }
 }
 

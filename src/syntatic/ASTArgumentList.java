@@ -15,7 +15,7 @@ public class ASTArgumentList extends SimpleNode {
   }
 
   public String toString() {
-    return "arguments:";
+    return "argts:";
   }
 
 }

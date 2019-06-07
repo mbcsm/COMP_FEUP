@@ -9,13 +9,13 @@ public class ASTAnd extends SimpleNode {
     super(p, id);
   }
 
+  public String toString() {
+    return "&&";
+  }
+
   @Override
   public String getType() throws SemanticException {
     return "boolean";
-  }
-
-  public String toString() {
-    return "&&";
   }
 }
 /*

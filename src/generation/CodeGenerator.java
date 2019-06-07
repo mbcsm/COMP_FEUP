@@ -6,353 +6,213 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 
 public class CodeGenerator {
-    static String motherClassName;
-    static SymbolTable table;
-    static int registerCounter = 1;
+    static String className;
+    static SymbolTable symbolTable;
+    static int registerStack = 1;
 
     public static void main(String args[]) throws ParseException, FileNotFoundException, SemanticException {
         try {
-            Javamm javamm = new Javamm(new FileInputStream("MonteCarloPi.txt"));
+
+            if (args.length != 1) {
+                Utils.printUsage();
+                return;
+            }
+
+            Javamm javamm = new Javamm(new FileInputStream(args[0]));
             SimpleNode root = javamm.Module();
 
-            Node firstChild = root.jjtGetChild(0);
-            table = new SymbolTable();
+            Node firstNode = root.jjtGetChild(0);
+            symbolTable = new SymbolTable();
 
-            ASTClassDeclaration cast_to_mother_class = (ASTClassDeclaration) firstChild;
-            motherClassName = cast_to_mother_class.className;
+            ASTClassDeclaration mainClass = (ASTClassDeclaration) firstNode;
+            className = mainClass.className;
 
-            table.addVariables(root);
-            table.fillReturn(root);
-            table.booleanAttribution(root);
+            symbolTable.addVariables(root);
+            symbolTable.fillReturn(root);
+            symbolTable.booleanAttribution(root);
             root.semanticAnalysis();
-            printAllSymbolTables(table);
+            printAllSymbolTables(symbolTable);
 
-            convertCodeToJasmin(firstChild);
-            System.out.println(" ");
-            System.out.println("Generated Jasmin file!");
+            toJasmin(firstNode);
+            System.out.println("\nJasmin file created.");
         }
 
         catch (FileNotFoundException ex) {
-            // insert code to run when exception occurs
+            System.out.println("Failed getting file <" + args[0] + ">");
+            Utils.printUsage();
             ex.printStackTrace();
+        } catch (ParseException e) {
+            System.out.println("Parse Exception reading <" + args[0] + ">");
+            Utils.printUsage();
+            e.printStackTrace();
         }
     }
 
-    public static void printAllSymbolTables(SymbolTable table) {
-
-        System.out.println("NAMES OF ALL METHODS:");
-        for (String name : table.getMethodsTable().keySet()) {
-            String value = table.getMethodsTable().get(name).getType();
-            System.out.println(name + " " + value);
-        }
-
-        System.out.println("");
-
-        System.out.println("ALL PARAMETERS FOR THOSE METHODS:");
-        for (String name : table.getParametersTable().keySet()) {
-            HashMap<String, Symbol> temp = table.getParametersTable().get(name);
-
-            System.out.println("Method " + name + ":");
-
-            for (String key : temp.keySet()) {
-                Symbol s1 = temp.get(key);
-                System.out.println(s1.getName() + " " + s1.getType());
-            }
-
-            System.out.println(" ");
-        }
-
-        System.out.println("");
-
-        System.out.println("ALL CLASS VARIABLES:");
-        for (String name : table.getClassVariablesTable().keySet()) {
-
-            table.getClassVariablesTable().get(name).setRegister(registerCounter);
-            registerCounter++;
-
-            String value = table.getClassVariablesTable().get(name).getType();
-            System.out.println(name + " " + value);
-        }
-
-        System.out.println("");
-
-        System.out.println("ALL LOCAL VARIABLES:");
-        for (String name : table.getLocalVariablesTable().keySet()) {
-            HashMap<String, Symbol> temp = table.getLocalVariablesTable().get(name);
-
-            System.out.println("Method " + name + ":");
-
-            for (String key : temp.keySet()) {
-                Symbol s1 = temp.get(key);
-
-                temp.get(key).setRegister(registerCounter);
-                registerCounter++;
-
-                System.out.println(s1.getName() + " " + s1.getType() + " register:" + temp.get(key).getRegister());
-            }
-
-            System.out.println(" ");
-
-        }
-
-        System.out.println("");
-
-        System.out.println("RETURN OF ALL METHODS:");
-        for (String name : table.getReturnTable().keySet()) {
-            String symbolValue = table.getReturnTable().get(name).getType();
-            String returnValue = table.getReturnTable().get(name).getName();
-            System.out.println(name + " " + returnValue + " " + symbolValue);
-        }
-    };
-
-    public static PrintWriter printJasminFile() {
-
-        try {
-            File dir = new File("jasmin");
-            if (!dir.exists())
-                dir.mkdirs();
-
-            File file = new File("jasmin/" + motherClassName + ".j");
-            if (!file.exists())
-                file.createNewFile();
-
-            PrintWriter writer = new PrintWriter(file);
-
-            return writer;
-
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        }
-
-        return null;
-    }
-
-    public static void convertCodeToJasmin(Node firstChild) {
+    public static void toJasmin(Node firstChild) {
 
         if (firstChild != null) {
-            PrintWriter file = printJasminFile();
+            PrintWriter output = Utils.toFile(className);
 
-            file.println(".class public " + motherClassName);
-            file.println(".super java/lang/Object\n");
+            output.println(".class public " + className);
+            output.println(".super java/lang/Object\n");
 
-            // functions (methods) conversion of each instruction
             for (int i = 0; i < firstChild.jjtGetNumChildren(); i++) {
 
                 Node node = firstChild.jjtGetChild(i);
 
                 if (node.getId() == JavammTreeConstants.JJTMETHODDECLARATION) {
                     ASTMethodDeclaration method = (ASTMethodDeclaration) node;
-                    convertMethod(file, method, null);
+                    toMethod(output, method, null);
                 }
 
                 if (node.getId() == JavammTreeConstants.JJTMAINDECLARATION) {
                     ASTMainDeclaration method = (ASTMainDeclaration) node;
-                    convertMethod(file, null, method);
+                    toMethod(output, null, method);
                 }
             }
-
-            file.close();
-
+            output.close();
         }
     }
 
-    private static void convertMethod(PrintWriter file, ASTMethodDeclaration node, ASTMainDeclaration otherNode) {
-
-        Table methodsTable = null;
+    private static void toMethod(PrintWriter output, ASTMethodDeclaration node, ASTMainDeclaration otherNode) {
         String methodName = null;
+        Table methodsTable = null;
         SimpleNode methodNode = null;
 
-        file.print("\n.method public static ");
+        output.print("\n.method public static ");
 
         if (node != null) {
             methodNode = (ASTMethodDeclaration) node;
             methodName = node.methodName;
             methodsTable = getMethodTable(methodName);
 
-            file.print(header(methodsTable, methodNode, methodName) + "\n");
-        }
-
-        else {
-            methodNode = (ASTMainDeclaration) otherNode;
+            output.print(header(methodsTable, methodNode, methodName) + "\n");
+        } else {
             methodName = "main";
+            methodNode = (ASTMainDeclaration) otherNode;
             methodsTable = getMethodTable("main");
-
-            file.print("main([Ljava/lang/String;)V\n");
+            output.print("main([Ljava/lang/String;)V\n");
         }
 
-        writeStackNumber(methodsTable, methodName, file);
+        writeStackNumber(methodsTable, methodName, output);
 
-        // function statements / arithmetric expressions
         for (int i = 0; i < methodNode.jjtGetNumChildren(); i++) {
-
             Node child = methodNode.jjtGetChild(i);
 
             if (child.getId() == JavammTreeConstants.JJTSTATEMENT) {
-                statementToJvm(file, methodsTable, child);
+                statementToJvm(output, methodsTable, child);
             }
-
         }
 
-        // function return
         if (methodsTable.getReturnSymbol() != null) {
 
-            printVariableLoad(file, methodsTable, methodsTable.getReturnSymbol().getName(), "ID");
+            printPayload(output, methodsTable, methodsTable.getReturnSymbol().getName(), "ID");
 
             if (methodsTable.getReturnSymbol().getType().equals("int")
                     || methodsTable.getReturnSymbol().getType().equals("boolean")) {
-                file.println("  ireturn");
+                output.println("  ireturn");
             } else if (methodsTable.getReturnSymbol().getType().equals("int[]")) {
-                file.println("  areturn");
+                output.println("  areturn");
+            } else {
+                output.println("  return");
             }
 
-            else { // void
-                file.println("  return");
-            }
-
-        } else { // void
-            file.println("  return");
+        } else {
+            output.println("  return");
         }
 
-        file.println(".end method\n");
+        output.println(".end method\n");
     }
 
-    private static void printVariableLoad(PrintWriter file, Table methodsTable, String name, String type) {
+    private static void printPayload(PrintWriter output, Table methodsTable, String name, String type) {
 
         if (type.equals("ID")) {
-            if (methodsTable != null && methodsTable.getSymbol(name) != null) { // Local Variables
-                Symbol variable = methodsTable.getSymbol(name);
+            if (methodsTable != null && methodsTable.getSymbol(name) != null) {
+                Symbol var = methodsTable.getSymbol(name);
 
-                if (variable.getType().equals("int")) { // ints
-                    if (variable.getRegister() >= 0 && variable.getRegister() <= 3)
-                        file.println("  iload_" + variable.getRegister());
+                if (var.getType().equals("int")) {
+                    if (var.getRegister() >= 0 && var.getRegister() <= 3)
+                        output.println("  iload_" + var.getRegister());
                     else
-                        file.println("  iload " + variable.getRegister());
+                        output.println("  iload " + var.getRegister());
                 }
 
-                else if (variable.getType().equals("int[]")) {// arrays
-                    if (variable.getRegister() >= 0 && variable.getRegister() <= 3)
-                        file.println("  aload_" + variable.getRegister());
+                else if (var.getType().equals("int[]")) {// TODO arrays
+                    if (var.getRegister() >= 0 && var.getRegister() <= 3)
+                        output.println("  aload_" + var.getRegister());
                     else
-                        file.println("  aload " + variable.getRegister());
+                        output.println("  aload " + var.getRegister());
                 }
 
-                else if (variable.getType().equals("boolean")) {// booleans
-                    if (variable.getName().equals("true")) {
-                        file.println("  iconst_" + 1);
-                    }
-
-                    else if (variable.getName().equals("false")) {
-                        file.println("  iconst_" + 0);
-                    }
-
-                    else {
-                        if (variable.getBool() == "null") {
-                            file.println("  iconst_" + 0);
-                        }
-
-                        else {
-                            if (variable.getBool() == "true") {
-                                file.println("  iconst_" + 1);
-                            }
-
-                            else if (variable.getBool() == "false") {
-                                file.println("  iconst_" + 0);
+                else if (var.getType().equals("boolean")) {
+                    if (var.getName().equals("true")) {
+                        output.println("  iconst_" + 1);
+                    } else if (var.getName().equals("false")) {
+                        output.println("  iconst_" + 0);
+                    } else {
+                        if (var.getBool() == "null") {
+                            output.println("  iconst_" + 0);
+                        } else {
+                            if (var.getBool() == "true") {
+                                output.println("  iconst_" + 1);
+                            } else if (var.getBool() == "false") {
+                                output.println("  iconst_" + 0);
                             }
                         }
                     }
                 }
 
-            } else { // Global variable
-                Symbol globalVariable = table.getClassVariablesTable().get(name);
+            } else {
+                Symbol global = symbolTable.getClassVariablesTable().get(name);
 
-                if (globalVariable != null) {
-                    String globalVariableType = globalVariable.getType();
-                    file.println(
-                            "  getstatic " + motherClassName + "/" + globalVariable.getName() + globalVariableType);
+                if (global != null) {
+                    String globalType = global.getType();
+                    output.println("  getstatic " + className + "/" + global.getName() + globalType);
                 }
-
             }
         } else if (type.equals("Integer")) {
-
             int number = Integer.parseInt(name);
 
             if (number == -1) {
-                file.println("  iconst_m1");
+                output.println("  iconst_m1");
             } else if (number >= 0 && number <= 5)
-                file.println("  iconst_" + number);
+                output.println("  iconst_" + number);
             else if (number >= -128 && number <= 127)
-                file.println("  bipush " + number);
+                output.println("  bipush " + number);
             else if (number >= -32768 && number <= 32767)
-                file.println("  sipush " + number);
+                output.println("  sipush " + number);
             else
-                file.println("  ldc " + number);
+                output.println("  ldc " + number);
 
         } else if (type.equals("String")) {
-
-            file.println("  ldc " + name);
+            output.println("  ldc " + name);
+        } else {
+            output.println("\n\nELSE TYPE <" + type + ">\n\n");
         }
-
     }
 
-    private static void statementToJvm(PrintWriter file, Table methodsTable, Node child) {
-        // Will include ifs, whiles, etc .. for now, will only include function call
-
-        for (int i = 0; i < child.jjtGetNumChildren(); i++) {
-
-            Node grandChild = child.jjtGetChild(i);
-
-            if (grandChild.getId() == JavammTreeConstants.JJTFUNCTIONCALL) {
-                methodCallToJvm(file, methodsTable, grandChild, "void");
-            }
-
-            if (grandChild.getId() == JavammTreeConstants.JJTSTATEMENTIF) {
-                ifToJvm(file, methodsTable, grandChild);
-            }
-            if (grandChild.getId() == JavammTreeConstants.JJTWHILE) {
-                whiletoJvm(file, methodsTable, grandChild.jjtGetParent());
-            }
-
-            if (grandChild.getId() == JavammTreeConstants.JJTATTRIBUTION) {
-
-                if (grandChild.jjtGetChild(1).getId() == JavammTreeConstants.JJTEXPRESSION) {
-
-                    if (grandChild.jjtGetChild(1).jjtGetChild(0).getId() == JavammTreeConstants.JJTARITHM) {
-
-                        ASTArithm arithm = (ASTArithm) grandChild.jjtGetChild(1).jjtGetChild(0);
-
-                        arithmToJvm(file, methodsTable, arithm);
-                    }
-                }
-            }
-        }
-
-        file.println("\n");
-    }
-
-    private static void ifToJvm(PrintWriter file, Table methodsTable, Node node) {
-        ASTStatementIf ifNode = (ASTStatementIf) node;
+    private static void ifToJvm(PrintWriter output, Table methodsTable, Node node) {
         methodsTable.incLoopCounter();
-        int loop_nr = methodsTable.getLoopCounter();
+        ASTStatementIf ifNode = (ASTStatementIf) node;
+        int loop_num = methodsTable.getLoopCounter();
         Node firstChild = ifNode.jjtGetChild(0);
-        Node grandChild = firstChild.jjtGetChild(0);
-        // in case of if(true) and if(false)
+        Node nextChild = firstChild.jjtGetChild(0);
+
         if (firstChild.getId() == JavammTreeConstants.JJTEXPRESSION) {
 
-            if (grandChild.getId() == JavammTreeConstants.JJTTRUE) {
+            if (nextChild.getId() == JavammTreeConstants.JJTTRUE) {
                 for (int i = 0; i < ifNode.jjtGetNumChildren(); i++) {
                     if (ifNode.jjtGetChild(i).getId() == JavammTreeConstants.JJTSTATEMENT) {
-                        statementToJvm(file, methodsTable, ifNode.jjtGetChild(i));
+                        statementToJvm(output, methodsTable, ifNode.jjtGetChild(i));
                     }
                 }
-            }
-
-            else if (grandChild.getId() == JavammTreeConstants.JJTFALSE) {
+            } else if (nextChild.getId() == JavammTreeConstants.JJTFALSE) {
                 for (int i = 0; i < ifNode.jjtGetNumChildren(); i++) {
                     if (ifNode.jjtGetChild(i).getId() == JavammTreeConstants.JJTELSE) {
                         ASTElse elseNode = (ASTElse) ifNode.jjtGetChild(i);
 
                         for (int j = 0; j < elseNode.jjtGetNumChildren(); j++) {
-                            statementToJvm(file, methodsTable, elseNode.jjtGetChild(j));
+                            statementToJvm(output, methodsTable, elseNode.jjtGetChild(j));
                         }
 
                     }
@@ -362,180 +222,175 @@ public class CodeGenerator {
 
         for (int i = 0; i < ifNode.jjtGetNumChildren(); i++) {
 
-            // Expression between parenthesis
             if (ifNode.jjtGetChild(i).getId() == JavammTreeConstants.JJTEXPRESSION) {
-                expressionIfToJvm(file, methodsTable, ifNode.jjtGetChild(i).jjtGetChild(0), loop_nr);
-                file.print("\n");
-            }
-
-            // Else
-            else if (ifNode.jjtGetChild(i).getId() == JavammTreeConstants.JJTELSE) {
+                expressionIfToJvm(output, methodsTable, ifNode.jjtGetChild(i).jjtGetChild(0), loop_num);
+                output.print("\n");
+            } else if (ifNode.jjtGetChild(i).getId() == JavammTreeConstants.JJTELSE) {
                 ASTElse elseNode = (ASTElse) ifNode.jjtGetChild(i);
 
-                file.println("  goto loop" + loop_nr + "_next\n");
-                file.println("loop" + loop_nr + "_end:");
+                output.println("  goto loop" + loop_num + "_next\n");
+                output.println("loop" + loop_num + "_end:");
 
                 for (int j = 0; j < elseNode.jjtGetNumChildren(); j++) {
-                    statementToJvm(file, methodsTable, elseNode.jjtGetChild(j));
+                    statementToJvm(output, methodsTable, elseNode.jjtGetChild(j));
                 }
 
-                file.print("loop" + loop_nr + "_next:");
-            }
-
-            // If statements
-            else {
-                statementToJvm(file, methodsTable, ifNode.jjtGetChild(i));
+                output.print("loop" + loop_num + "_next:");
+            } else {
+                statementToJvm(output, methodsTable, ifNode.jjtGetChild(i));
             }
         }
-
     }
 
-    private static void whiletoJvm(PrintWriter file, Table methodsTable, Node node) {
+    private static void statementToJvm(PrintWriter output, Table methodsTable, Node child) {
+        for (int i = 0; i < child.jjtGetNumChildren(); i++) {
+
+            Node nextChild = child.jjtGetChild(i);
+
+            if (nextChild.getId() == JavammTreeConstants.JJTFUNCTIONCALL) {
+                methodToJvm(output, methodsTable, nextChild, "void");
+            }
+
+            if (nextChild.getId() == JavammTreeConstants.JJTSTATEMENTIF) {
+                ifToJvm(output, methodsTable, nextChild);
+            }
+            if (nextChild.getId() == JavammTreeConstants.JJTWHILE) {
+                whileToJvm(output, methodsTable, nextChild.jjtGetParent());
+            }
+
+            if (nextChild.getId() == JavammTreeConstants.JJTATTRIBUTION) {
+
+                if (nextChild.jjtGetChild(1).getId() == JavammTreeConstants.JJTEXPRESSION) {
+
+                    if (nextChild.jjtGetChild(1).jjtGetChild(0).getId() == JavammTreeConstants.JJTARITHM) {
+
+                        ASTArithm arithm = (ASTArithm) nextChild.jjtGetChild(1).jjtGetChild(0);
+                        arithmeticGeneration(output, methodsTable, arithm);
+                    }
+                }
+            }
+        }
+        output.println("\n");
+    }
+
+    private static void whileToJvm(PrintWriter output, Table methodsTable, Node node) {
 
         methodsTable.incLoopCounter();
-        int loop_nr = methodsTable.getLoopCounter();
+
         Node firstChild = node.jjtGetChild(1);
-        Node grandChild = firstChild.jjtGetChild(0);
-        file.println("loop" + loop_nr + ":");
-        // in case of while(true)
+        Node nextChild = firstChild.jjtGetChild(0);
+        int loop_num = methodsTable.getLoopCounter();
+
+        output.println("loop" + loop_num + ":");
+
         if (firstChild.getId() == JavammTreeConstants.JJTEXPRESSION) {
 
-            if (grandChild.getId() == JavammTreeConstants.JJTTRUE) {
+            if (nextChild.getId() == JavammTreeConstants.JJTTRUE) {
                 for (int i = 1; i < node.jjtGetNumChildren(); i++) {
                     if (node.jjtGetChild(i).getId() == JavammTreeConstants.JJTSTATEMENT) {
-                        statementToJvm(file, methodsTable, node.jjtGetChild(i));
+                        statementToJvm(output, methodsTable, node.jjtGetChild(i));
                     }
                 }
             }
         }
         for (int i = 1; i < node.jjtGetNumChildren(); i++) {
-            // Expression between parenthesis
+
             if (node.jjtGetChild(i).getId() == JavammTreeConstants.JJTEXPRESSION) {
-                expressionIfToJvm(file, methodsTable, node.jjtGetChild(i).jjtGetChild(0), loop_nr);
-                file.print("\n");
-            }
-            // While statements
-            else {
-                statementToJvm(file, methodsTable, node.jjtGetChild(i));
+                expressionIfToJvm(output, methodsTable, node.jjtGetChild(i).jjtGetChild(0), loop_num);
+                output.print("\n");
+            } else {
+                statementToJvm(output, methodsTable, node.jjtGetChild(i));
             }
         }
-        file.println("  goto loop" + loop_nr + "\n");
-        file.print("loop" + loop_nr + "_end:");
+        output.println("  goto loop" + loop_num + "\n");
+        output.print("loop" + loop_num + "_end:");
     }
 
-    private static void expressionIfToJvm(PrintWriter file, Table methodsTable, Node grandChild, int loop_nr) {
+    private static void expressionIfToJvm(PrintWriter output, Table methodsTable, Node nextChild, int loop_num) {
 
-        // Expressions that evaluate to boolean:
-        // functions V
-        // operator < V with functions! V and then negation V
-        // operator && V with functions! V and then negation V
-        // single boolean term V
-        // ! (Expression) V
+        if (nextChild.getId() == JavammTreeConstants.JJTARITHM) {
 
-        if (grandChild.getId() == JavammTreeConstants.JJTARITHM) {
+            ASTArithm arithmetic = (ASTArithm) nextChild;
+            Node tagged = arithmetic.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0);
 
-            ASTArithm cast_arithm = (ASTArithm) grandChild;
+            if (tagged.getId() == JavammTreeConstants.JJTLESS) {
+                Node first = tagged.jjtGetChild(0);
+                Node second = tagged.jjtGetChild(1);
 
-            Node tag = cast_arithm.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0);
+                handleTerm(first, output, loop_num, methodsTable);
+                handleTerm(second, output, loop_num, methodsTable);
 
-            // operator <
-            if (tag.getId() == JavammTreeConstants.JJTLESS) {
-                Node term1 = tag.jjtGetChild(0);
-                Node term2 = tag.jjtGetChild(1);
-
-                handleTerms(term1, file, loop_nr, methodsTable);
-                handleTerms(term2, file, loop_nr, methodsTable);
-
-                file.println("  if_icmpge loop" + loop_nr + "_end");
+                output.println("  if_icmpge loop" + loop_num + "_end");
             }
 
-            // operator &&
-            else if (tag.getId() == JavammTreeConstants.JJTAND) {
-                Node term1 = tag.jjtGetChild(0);
-                Node term2 = tag.jjtGetChild(1);
+            else if (tagged.getId() == JavammTreeConstants.JJTAND) {
+                Node first = tagged.jjtGetChild(0);
+                Node second = tagged.jjtGetChild(1);
 
-                handleTerms(term1, file, loop_nr, methodsTable);
-                file.println("  ifeq loop" + loop_nr + "_end");
-                handleTerms(term2, file, loop_nr, methodsTable);
-                file.println("  ifeq loop" + loop_nr + "_end");
-            }
+                handleTerm(first, output, loop_num, methodsTable);
+                output.println("  ifeq loop" + loop_num + "_end");
+                handleTerm(second, output, loop_num, methodsTable);
+                output.println("  ifeq loop" + loop_num + "_end");
+            } else {
+                if (tagged.getId() == JavammTreeConstants.JJTTERM) {
 
-            // single boolean term
-            else {
-                if (tag.getId() == JavammTreeConstants.JJTTERM) {
-
-                    // no parenthesis
-                    if (tag.jjtGetNumChildren() == 0) {
-                        ASTTerm term_cast = (ASTTerm) tag;
-                        termToJvm(file, methodsTable, term_cast);
-                        file.println("  ifeq loop" + loop_nr + "_end");
-                    }
-
-                    // ( <something> )
-                    else {
-                        Node child = tag.jjtGetChild(0);
+                    if (tagged.jjtGetNumChildren() == 0) {
+                        ASTTerm term_cast = (ASTTerm) tagged;
+                        termToJvm(output, methodsTable, term_cast);
+                        output.println("  ifeq loop" + loop_num + "_end");
+                    } else {
+                        Node child = tagged.jjtGetChild(0);
 
                         if (child.getId() == JavammTreeConstants.JJTPARENTHESISARITHM) {
                             ASTParenthesisArithm parenthesisArithm = (ASTParenthesisArithm) child;
-                            expressionIfToJvm(file, methodsTable, parenthesisArithm.jjtGetChild(0), loop_nr);
+                            expressionIfToJvm(output, methodsTable, parenthesisArithm.jjtGetChild(0), loop_num);
                         }
 
                         if (child.getId() == JavammTreeConstants.JJTTHISCALL) {
                             ASTThisCall thisCall = (ASTThisCall) child;
 
                             if (thisCall.jjtGetNumChildren() > 0) {
-                                // this.funct()
-                                ASTFunctionCall conveniece = new ASTFunctionCall(Integer.MAX_VALUE);
+
+                                ASTFunctionCall call = new ASTFunctionCall(Integer.MAX_VALUE);
 
                                 if (thisCall.jjtGetChild(0).jjtGetNumChildren() > 0) {
                                     if (thisCall.jjtGetChild(0).jjtGetChild(0)
                                             .getId() == JavammTreeConstants.JJTARGUMENTLIST) {
-                                        conveniece.jjtAddChild(thisCall.jjtGetChild(0).jjtGetChild(0), 0);
+                                        call.jjtAddChild(thisCall.jjtGetChild(0).jjtGetChild(0), 0);
                                     }
                                 }
-
-                                conveniece.function = "this";
-                                conveniece.module = thisCall.module;
-
-                                methodCallToJvm(file, methodsTable, conveniece, "void");
-                                file.println("  ifeq loop" + loop_nr + "_end");
+                                call.module = thisCall.module;
+                                call.function = "this";
+                                methodToJvm(output, methodsTable, call, "void");
+                                output.println("  ifeq loop" + loop_num + "_end");
+                            } else {
+                                printPayload(output, methodsTable, thisCall.module, "ID");
+                                output.println("  ifeq loop" + loop_num + "_end");
                             }
-
-                            else {
-                                // this.variable
-                                printVariableLoad(file, methodsTable, thisCall.module, "ID");
-                                file.println("  ifeq loop" + loop_nr + "_end");
-                            }
-
                         }
 
-                        // variable.attribute
                         if (child.getId() == JavammTreeConstants.JJTEXPRESSIONMETHOD) {
                             if (child.jjtGetChild(0).getId() == JavammTreeConstants.JJTMETHODS) {
-                                ASTTerm term_cast = (ASTTerm) tag;
+                                ASTTerm term_cast = (ASTTerm) tagged;
                                 String function = term_cast.identifier;
                                 ASTMethods method = (ASTMethods) child.jjtGetChild(0);
                                 String module = method.module;
 
                                 if (module.equals("length")) {
-                                    file.println("  arraylength");
-                                    file.println("  ifeq loop" + loop_nr + "_end");
-                                }
-
-                                else {
-                                    ASTFunctionCall conveniece = new ASTFunctionCall(0);
+                                    output.println("  arraylength");
+                                    output.println("  ifeq loop" + loop_num + "_end");
+                                } else {
+                                    ASTFunctionCall call = new ASTFunctionCall(0);
 
                                     if (method.jjtGetNumChildren() > 0) {
                                         if (method.jjtGetChild(0).getId() == JavammTreeConstants.JJTARGUMENTLIST) {
-                                            conveniece.jjtAddChild(method.jjtGetChild(0), 0);
+                                            call.jjtAddChild(method.jjtGetChild(0), 0);
                                         }
                                     }
-
-                                    conveniece.function = function;
-                                    conveniece.module = module;
-
-                                    methodCallToJvm(file, methodsTable, conveniece, "void");
-                                    file.println("  ifeq loop" + loop_nr + "_end");
+                                    call.module = module;
+                                    call.function = function;
+                                    methodToJvm(output, methodsTable, call, "void");
+                                    output.println("  ifeq loop" + loop_num + "_end");
                                 }
                             }
                         }
@@ -544,59 +399,45 @@ public class CodeGenerator {
                 }
             }
 
-        }
-
-        // Exclamation Mark
-        else if (grandChild.getId() == JavammTreeConstants.JJTEXCLAMATIONMARK) {
-            expressionRecursion(file, methodsTable, loop_nr, grandChild.jjtGetChild(0).jjtGetChild(0));
-        }
-
-        // Functions
-        else if (grandChild.getId() == JavammTreeConstants.JJTFUNCTIONCALL) {
-            methodCallToJvm(file, methodsTable, grandChild, "void");
-            file.println("  ifeq loop" + loop_nr + "_end");
+        } else if (nextChild.getId() == JavammTreeConstants.JJTEXCLAMATIONMARK) {
+            expressionIterator(output, methodsTable, loop_num, nextChild.jjtGetChild(0).jjtGetChild(0));
+        } else if (nextChild.getId() == JavammTreeConstants.JJTFUNCTIONCALL) {
+            methodToJvm(output, methodsTable, nextChild, "void");
+            output.println("  ifeq loop" + loop_num + "_end");
         }
 
     }
 
-    private static void expressionRecursion(PrintWriter file, Table methodsTable, int loop_nr, Node grandChild) {
+    private static void expressionIterator(PrintWriter output, Table methodsTable, int loop_num, Node nextChild) {
 
-        if (grandChild.getId() == JavammTreeConstants.JJTARITHM) {
+        if (nextChild.getId() == JavammTreeConstants.JJTARITHM) {
 
-            ASTArithm cast_arithm = (ASTArithm) grandChild;
+            ASTArithm arithmetic = (ASTArithm) nextChild;
+            Node tag = arithmetic.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0);
 
-            Node tag = cast_arithm.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0);
-
-            // negates <
             if (tag.getId() == JavammTreeConstants.JJTLESS) {
-                Node term1 = tag.jjtGetChild(0);
-                Node term2 = tag.jjtGetChild(1);
+                Node first = tag.jjtGetChild(0);
+                Node second = tag.jjtGetChild(1);
 
-                handleTerms(term1, file, loop_nr, methodsTable);
-                handleTerms(term2, file, loop_nr, methodsTable);
+                handleTerm(first, output, loop_num, methodsTable);
+                handleTerm(second, output, loop_num, methodsTable);
 
-                file.println("  if_icmplt loop" + loop_nr + "_end");
-            }
+                output.println("  if_icmplt loop" + loop_num + "_end");
+            } else if (tag.getId() == JavammTreeConstants.JJTAND) {
+                Node first = tag.jjtGetChild(0);
+                Node second = tag.jjtGetChild(1);
 
-            // negates &&
-            else if (tag.getId() == JavammTreeConstants.JJTAND) {
-                Node term1 = tag.jjtGetChild(0);
-                Node term2 = tag.jjtGetChild(1);
-
-                handleTerms(term1, file, loop_nr, methodsTable);
-                file.println("  ifeq loop" + loop_nr + "_end");
-                handleTerms(term2, file, loop_nr, methodsTable);
-                file.println("  ifne loop" + loop_nr + "_end");
-            }
-
-            // negates single boolean term
-            else {
+                handleTerm(first, output, loop_num, methodsTable);
+                output.println("  ifeq loop" + loop_num + "_end");
+                handleTerm(second, output, loop_num, methodsTable);
+                output.println("  ifne loop" + loop_num + "_end");
+            } else {
                 if (tag.getId() == JavammTreeConstants.JJTTERM) {
 
                     if (tag.jjtGetNumChildren() == 0) {
                         ASTTerm term_cast = (ASTTerm) tag;
-                        termToJvm(file, methodsTable, term_cast);
-                        file.println("  ifne loop" + loop_nr + "_end");
+                        termToJvm(output, methodsTable, term_cast);
+                        output.println("  ifne loop" + loop_num + "_end");
                     }
 
                     else {
@@ -604,14 +445,13 @@ public class CodeGenerator {
 
                         if (child.getId() == JavammTreeConstants.JJTPARENTHESISARITHM) {
                             ASTParenthesisArithm parenthesisArithm = (ASTParenthesisArithm) child;
-                            expressionRecursion(file, methodsTable, loop_nr, parenthesisArithm.jjtGetChild(0));
+                            expressionIterator(output, methodsTable, loop_num, parenthesisArithm.jjtGetChild(0));
                         }
 
                         if (child.getId() == JavammTreeConstants.JJTTHISCALL) {
-                            thisCallProcedure(child, file, loop_nr, methodsTable);
+                            callProcedure(child, output, loop_num, methodsTable);
                         }
 
-                        // negate variable.something
                         if (child.getId() == JavammTreeConstants.JJTEXPRESSIONMETHOD) {
                             if (child.jjtGetChild(0).getId() == JavammTreeConstants.JJTMETHODS) {
                                 ASTTerm term_cast = (ASTTerm) tag;
@@ -620,24 +460,24 @@ public class CodeGenerator {
                                 String module = method.module;
 
                                 if (module.equals("length")) {
-                                    file.println("  arraylength");
-                                    file.println("  ifne loop" + loop_nr + "_end");
+                                    output.println("  arraylength");
+                                    output.println("  ifne loop" + loop_num + "_end");
                                 }
 
                                 else {
-                                    ASTFunctionCall conveniece = new ASTFunctionCall(0);
+                                    ASTFunctionCall call = new ASTFunctionCall(0);
 
                                     if (method.jjtGetNumChildren() > 0) {
                                         if (method.jjtGetChild(0).getId() == JavammTreeConstants.JJTARGUMENTLIST) {
-                                            conveniece.jjtAddChild(method.jjtGetChild(0), 0);
+                                            call.jjtAddChild(method.jjtGetChild(0), 0);
                                         }
                                     }
 
-                                    conveniece.function = function;
-                                    conveniece.module = module;
+                                    call.function = function;
+                                    call.module = module;
 
-                                    methodCallToJvm(file, methodsTable, conveniece, "void");
-                                    file.println("  ifne loop" + loop_nr + "_end");
+                                    methodToJvm(output, methodsTable, call, "void");
+                                    output.println("  ifne loop" + loop_num + "_end");
                                 }
                             }
                         }
@@ -646,111 +486,93 @@ public class CodeGenerator {
 
             }
 
-        }
-
-        // Exclamation Mark
-        else if (grandChild.getId() == JavammTreeConstants.JJTEXCLAMATIONMARK) {
-            expressionRecursion(file, methodsTable, loop_nr, grandChild.jjtGetChild(0));
-        }
-
-        // negates boolean function
-        else if (grandChild.getId() == JavammTreeConstants.JJTFUNCTIONCALL) {
-            methodCallToJvm(file, methodsTable, grandChild, "void");
-            file.println("  ifne loop" + loop_nr + "_end");
+        } else if (nextChild.getId() == JavammTreeConstants.JJTEXCLAMATIONMARK) {
+            expressionIterator(output, methodsTable, loop_num, nextChild.jjtGetChild(0));
+        } else if (nextChild.getId() == JavammTreeConstants.JJTFUNCTIONCALL) {
+            methodToJvm(output, methodsTable, nextChild, "void");
+            output.println("  ifne loop" + loop_num + "_end");
         }
     }
 
-    private static void arithmToJvm(PrintWriter file, Table methodsTable, Node grandChild) {
+    private static void arithmeticGeneration(PrintWriter output, Table methodsTable, Node nextChild) {
 
-        ASTArithm arithm = (ASTArithm) grandChild;
-        String operator = determineOperator(arithm, "");
+        ASTArithm arithm = (ASTArithm) nextChild;
+        String operator = whichOperator(arithm, "");
 
-        ASTTerm term1 = null;
-        ASTTerm term2 = null;
+        ASTTerm first = null;
+        ASTTerm second = null;
 
         if (arithm.jjtGetChild(0).getId() == JavammTreeConstants.JJTADD
                 || arithm.jjtGetChild(0).getId() == JavammTreeConstants.JJTSUB) {
-            term1 = goThroughArithmChildrenUntilTerm(arithm.jjtGetChild(0).jjtGetChild(0), 0);
-            term2 = goThroughArithmChildrenUntilTerm(arithm.jjtGetChild(0).jjtGetChild(1), 0);
+            first = termCycle(arithm.jjtGetChild(0).jjtGetChild(0), 0);
+            second = termCycle(arithm.jjtGetChild(0).jjtGetChild(1), 0);
         }
 
         else if (arithm.jjtGetChild(0).jjtGetChild(0).getId() == JavammTreeConstants.JJTMULT
                 || arithm.jjtGetChild(0).jjtGetChild(0).getId() == JavammTreeConstants.JJTDIV) {
-            term1 = goThroughArithmChildrenUntilTerm(arithm.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0), 0);
-            term2 = goThroughArithmChildrenUntilTerm(arithm.jjtGetChild(0).jjtGetChild(0).jjtGetChild(1), 0);
+            first = termCycle(arithm.jjtGetChild(0).jjtGetChild(0).jjtGetChild(0), 0);
+            second = termCycle(arithm.jjtGetChild(0).jjtGetChild(0).jjtGetChild(1), 0);
         }
 
-        if (term2 != null && term1 != null) {
-            termToJvm(file, methodsTable, term1);
-            termToJvm(file, methodsTable, term2);
+        if (second != null && first != null) {
+            termToJvm(output, methodsTable, first);
+            termToJvm(output, methodsTable, second);
         }
 
         switch (operator) {
         case "+":
-            file.println("  iadd");
+            output.println("  iadd");
             break;
         case "-":
-            file.println("  isub");
+            output.println("  isub");
             break;
         case "*":
-            file.println("  imul");
+            output.println("  imul");
             break;
         case "/":
-            file.println("  idiv");
+            output.println("  idiv");
             break;
         }
     }
 
-    private static void termToJvm(PrintWriter file, Table methodsTable, ASTTerm term) {
-        if (term.val != null) {
-            printVariableLoad(file, methodsTable, "" + term.val, "Integer");
-        }
-
-        if (!term.identifier.equals("")) {
-            printVariableLoad(file, methodsTable, term.identifier, "ID");
-        }
-    }
-
-    private static ASTTerm goThroughArithmChildrenUntilTerm(Node child, int index) {
-
-        if (child.getId() == JavammTreeConstants.JJTTERM) {
-            return (ASTTerm) child;
-        }
-
-        else {
-            return goThroughArithmChildrenUntilTerm(child.jjtGetChild(index), index);
-        }
-    }
-
-    public static String determineOperator(ASTArithm arithm, String operator) {
+    public static String whichOperator(ASTArithm arithm, String operator) {
         if (arithm.operator == "+") {
             operator = "+";
-        }
-
-        else if (arithm.operator == "-") {
+        } else if (arithm.operator == "-") {
             operator = "-";
-        }
-
-        else if (arithm.jjtGetChild(0).getId() == JavammTreeConstants.JJTEXPRESSIONMULT) {
+        } else if (arithm.jjtGetChild(0).getId() == JavammTreeConstants.JJTEXPRESSIONMULT) {
             ASTExpressionMult child = (ASTExpressionMult) arithm.jjtGetChild(0);
-
             if (child.operator == "*") {
                 operator = "*";
-            }
-
-            else if (child.operator == "/") {
+            } else if (child.operator == "/") {
                 operator = "/";
             }
         }
-
         return operator;
     }
 
-    private static void methodCallToJvm(PrintWriter file, Table methodsTable, Node grandChild, String returnType) {
+    private static ASTTerm termCycle(Node child, int index) {
 
-        ASTFunctionCall call = (ASTFunctionCall) grandChild;
+        if (child.getId() == JavammTreeConstants.JJTTERM) {
+            return (ASTTerm) child;
+        } else {
+            return termCycle(child.jjtGetChild(index), index);
+        }
+    }
 
+    private static void termToJvm(PrintWriter output, Table methodsTable, ASTTerm term) {
+        if (term.val != null) {
+            printPayload(output, methodsTable, "" + term.val, "Integer");
+        }
+
+        if (!term.identifier.equals("")) {
+            printPayload(output, methodsTable, term.identifier, "ID");
+        }
+    }
+
+    private static void methodToJvm(PrintWriter output, Table methodsTable, Node nextChild, String returnType) {
         ASTArgumentList argumentList = null;
+        ASTFunctionCall call = (ASTFunctionCall) nextChild;
 
         if (call.jjtGetNumChildren() > 0 && call.jjtGetChild(0).getId() == JavammTreeConstants.JJTARGUMENTLIST) {
 
@@ -758,43 +580,104 @@ public class CodeGenerator {
 
             for (int i = 0; i < argumentList.jjtGetNumChildren(); i++) {
                 ASTArgument argument = (ASTArgument) argumentList.jjtGetChild(i);
-                printVariableLoad(file, methodsTable, argument.name, argument.type);
+                printPayload(output, methodsTable, argument.name, argument.type);
             }
         }
 
         if (call.jjtGetNumChildren() == 0 && call.function.equals("main")) {
-            file.println("  aconst_null");
-            file.println("  invokestatic " + motherClassName + "/main([Ljava/lang/String;)V");
+            output.println("  aconst_null");
+            output.println("  invokestatic " + className + "/main([Ljava/lang/String;)V");
         }
 
         if (call.function.equals("this")) {
-            file.println("  invokevirtual " + motherClassName + "/"
-                    + functionHeaderInvoke(file, methodsTable, call.module, argumentList, returnType));
-        }
-
-        else if (methodsTable.getVars() != null) {
-            if (methodsTable.getVars().get(call.function) == null || table.getMethodsTable().get(call.module) == null
-                    || !methodsTable.getVars().get(call.function).getType().equals(motherClassName)) {
-                file.println("  invokestatic " + call.function + "/"
-                        + functionHeaderInvoke(file, methodsTable, call.module, argumentList, returnType));
+            output.println("  invokevirtual " + className + "/"
+                    + headerInvoke(output, methodsTable, call.module, argumentList, returnType));
+        } else if (methodsTable.getVars() != null) {
+            if (methodsTable.getVars().get(call.function) == null
+                    || symbolTable.getMethodsTable().get(call.module) == null
+                    || !methodsTable.getVars().get(call.function).getType().equals(className)) {
+                output.println("  invokestatic " + call.function + "/"
+                        + headerInvoke(output, methodsTable, call.module, argumentList, returnType));
             } else if ((methodsTable.getVars().get(call.function) != null
-                    && methodsTable.getVars().get(call.function).getType().equals(motherClassName))
-                    && table.getMethodsTable().get(call.module) != null) {
-                file.println("  invokevirtual " + call.function + "/"
-                        + functionHeaderInvoke(file, methodsTable, call.module, argumentList, returnType));
+                    && methodsTable.getVars().get(call.function).getType().equals(className))
+                    && symbolTable.getMethodsTable().get(call.module) != null) {
+                output.println("  invokevirtual " + call.function + "/"
+                        + headerInvoke(output, methodsTable, call.module, argumentList, returnType));
             }
-        }
-
-        else {
-            file.println("  invokestatic " + call.function + "/"
-                    + functionHeaderInvoke(file, methodsTable, call.module, argumentList, returnType));
+        } else {
+            output.println("  invokestatic " + call.function + "/"
+                    + headerInvoke(output, methodsTable, call.module, argumentList, returnType));
         }
     }
 
-    private static String functionHeaderInvoke(PrintWriter file, Table methodsTable, String function,
+    private static String header(Table methodTable, SimpleNode methodNode, String methodName) {
+
+        ASTMethodDeclaration cast_node = (ASTMethodDeclaration) methodNode;
+
+        String headerFunc = methodName + "(";
+
+        if (cast_node.jjtGetChild(1).getId() == JavammTreeConstants.JJTMETHODARGUMENTS) {
+            ASTMethodArguments first = (ASTMethodArguments) cast_node.jjtGetChild(1);
+
+            if (first.jjtGetNumChildren() > 0) {
+                ASTType type_node = (ASTType) first.jjtGetChild(0);
+
+                if (type_node.type.equals("int") && type_node.isArray) {
+                    headerFunc = headerFunc + "[I";
+                }
+
+                if (type_node.type.equals("int") && !type_node.isArray) {
+                    headerFunc = headerFunc + "I";
+                }
+
+                if (type_node.type.equals("boolean")) {
+                    headerFunc = headerFunc + "Z";
+                }
+
+                if (first.jjtGetNumChildren() > 1) {
+                    for (int i = 1; i < first.jjtGetNumChildren(); i++) {
+                        ASTMethodArgumentPiece child = (ASTMethodArgumentPiece) first.jjtGetChild(i);
+
+                        ASTType other = (ASTType) child.jjtGetChild(0);
+
+                        if (other.type.equals("int") && other.isArray) {
+                            headerFunc = headerFunc + "[I";
+                        }
+
+                        if (other.type.equals("int") && !other.isArray) {
+                            headerFunc = headerFunc + "I";
+                        }
+
+                        if (other.type.equals("boolean")) {
+                            headerFunc = headerFunc + "Z";
+                        }
+
+                    }
+                }
+            }
+        }
+
+        if (symbolTable.getMethodsTable().containsKey(methodName)) {
+            Symbol _s = symbolTable.getMethodsTable().get(methodName);
+
+            if (_s.type.equals("void")) {
+                headerFunc = headerFunc + ")V";
+            } else if (_s.type.equals("int") || _s.type.equals("boolean")) {
+                headerFunc = headerFunc + ")I";
+            } else if (_s.type.equals("int[]")) {
+                headerFunc = headerFunc + ")[I";
+            } else {
+                headerFunc = headerFunc + ")";
+            }
+        }
+
+        return headerFunc;
+    }
+
+    private static String headerInvoke(PrintWriter output, Table methodsTable, String function,
             ASTArgumentList arguments, String returnType) {
 
-        String functionHeader = function + "(";
+        String headerFunc = function + "(";
 
         if (arguments != null) {
             for (int i = 0; i < arguments.jjtGetNumChildren(); i++) {
@@ -802,42 +685,35 @@ public class CodeGenerator {
                 if (argument.type.equals("ID")) {
 
                     if (methodsTable.getVars() != null) {
-                        Symbol s1 = methodsTable.getVars().get(argument.name);
+                        Symbol _s = methodsTable.getVars().get(argument.name);
 
-                        if (s1 != null) {
-                            String type = s1.type;
+                        if (_s != null) {
+                            String type = _s.type;
 
                             if (type.equals("int[]")) {
-                                functionHeader = functionHeader + "[I";
-                            }
-
-                            else
-                                functionHeader = functionHeader + "I";
+                                headerFunc = headerFunc + "[I";
+                            } else
+                                headerFunc = headerFunc + "I";
                         }
-
                     }
 
                     if (methodsTable.getParams() != null) {
-                        Symbol s1 = methodsTable.getParams().get(argument.name);
+                        Symbol _s = methodsTable.getParams().get(argument.name);
 
-                        if (s1 != null) {
-                            String type = s1.type;
+                        if (_s != null) {
+                            String type = _s.type;
 
                             if (type.equals("int[]")) {
-                                functionHeader = functionHeader + "[I";
-                            }
-
-                            else
-                                functionHeader = functionHeader + "I";
+                                headerFunc = headerFunc + "[I";
+                            } else
+                                headerFunc = headerFunc + "I";
                         }
-                    }
-
-                    else
-                        functionHeader = functionHeader + "I";
+                    } else
+                        headerFunc = headerFunc + "I";
                 } else if (argument.type.equals("String"))
-                    functionHeader = functionHeader + "Ljava/lang/String;";
+                    headerFunc = headerFunc + "Ljava/lang/String;";
                 else if (argument.type.equals("Integer"))
-                    functionHeader = functionHeader + "I";
+                    headerFunc = headerFunc + "I";
                 else if (argument.jjtGetNumChildren() > 0) {
 
                     if (argument.jjtGetChild(0).getId() == JavammTreeConstants.JJTARGUMENTFUNCTIONCALL) {
@@ -852,29 +728,26 @@ public class CodeGenerator {
 
                             for (int j = 0; j < argumentList.jjtGetNumChildren(); j++) {
                                 ASTArgument arg = (ASTArgument) argumentList.jjtGetChild(j);
-                                printVariableLoad(file, methodsTable, arg.name, arg.type);
+                                printPayload(output, methodsTable, arg.name, arg.type);
                             }
                         }
 
                         if (methodsTable.getVars() != null) {
                             if (methodsTable.getVars().get(newFunc.function) == null
-                                    || table.getMethodsTable().get(newFunc.module) == null || !methodsTable.getVars()
-                                            .get(newFunc.function).getType().equals(motherClassName)) {
-                                file.println("  invokestatic " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                        methodsTable, newFunc.module, argumentList, returnType));
+                                    || symbolTable.getMethodsTable().get(newFunc.module) == null
+                                    || !methodsTable.getVars().get(newFunc.function).getType().equals(className)) {
+                                output.println("  invokestatic " + newFunc.function + "/"
+                                        + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
                             } else if ((methodsTable.getVars().get(newFunc.function) != null
-                                    && methodsTable.getVars().get(newFunc.function).getType().equals(motherClassName))
-                                    && table.getMethodsTable().get(newFunc.module) != null) {
-                                file.println("  invokevirtual " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                        methodsTable, newFunc.module, argumentList, returnType));
+                                    && methodsTable.getVars().get(newFunc.function).getType().equals(className))
+                                    && symbolTable.getMethodsTable().get(newFunc.module) != null) {
+                                output.println("  invokevirtual " + newFunc.function + "/"
+                                        + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
                             }
+                        } else {
+                            output.println("  invokestatic " + newFunc.function + "/"
+                                    + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
                         }
-
-                        else {
-                            file.println("  invokestatic " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                    methodsTable, newFunc.module, argumentList, returnType));
-                        }
-
                     }
 
                     if (argument.jjtGetChild(0).getId() == JavammTreeConstants.JJTNEWARGUMENTFUNCTIONCALL) {
@@ -889,33 +762,32 @@ public class CodeGenerator {
 
                             for (int j = 0; j < argumentList.jjtGetNumChildren(); j++) {
                                 ASTArgument arg = (ASTArgument) argumentList.jjtGetChild(j);
-                                printVariableLoad(file, methodsTable, arg.name, arg.type);
+                                printPayload(output, methodsTable, arg.name, arg.type);
                             }
                         }
 
                         if (methodsTable.getVars() != null) {
-                            if (table.getMethodsTable().get(newFunc.module) == null || !methodsTable.getVars()
-                                    .get(newFunc.function).getType().equals(motherClassName)) {
-                                file.println("  invokestatic " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                        methodsTable, newFunc.module, argumentList, returnType));
-                            } else if (methodsTable.getVars().get(newFunc.function).getType().equals(motherClassName)
-                                    && table.getMethodsTable().get(newFunc.module) != null) {
-                                file.println("  invokevirtual " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                        methodsTable, newFunc.module, argumentList, returnType));
+                            if (symbolTable.getMethodsTable().get(newFunc.module) == null
+                                    || !methodsTable.getVars().get(newFunc.function).getType().equals(className)) {
+                                output.println("  invokestatic " + newFunc.function + "/"
+                                        + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
+                            } else if (methodsTable.getVars().get(newFunc.function).getType().equals(className)
+                                    && symbolTable.getMethodsTable().get(newFunc.module) != null) {
+                                output.println("  invokevirtual " + newFunc.function + "/"
+                                        + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
                             }
                         }
 
                         else {
-                            if (table.getMethodsTable().get(newFunc.module) == null
-                                    || !newFunc.function.equals(motherClassName)) {
-                                file.println("  invokestatic " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                        methodsTable, newFunc.module, argumentList, returnType));
+                            if (symbolTable.getMethodsTable().get(newFunc.module) == null
+                                    || !newFunc.function.equals(className)) {
+                                output.println("  invokestatic " + newFunc.function + "/"
+                                        + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
                             } else {
-                                file.println("  invokevirtual " + newFunc.function + "/" + functionHeaderInvoke(file,
-                                        methodsTable, newFunc.module, argumentList, returnType));
+                                output.println("  invokevirtual " + newFunc.function + "/"
+                                        + headerInvoke(output, methodsTable, newFunc.module, argumentList, returnType));
                             }
                         }
-
                     }
                 }
             }
@@ -928,135 +800,54 @@ public class CodeGenerator {
 
             if (returnSymbol != null) {
                 if (returnSymbol.getType().equals("int") || returnSymbol.getType().equals("boolean"))
-                    functionHeader = functionHeader + ")I";
+                    headerFunc = headerFunc + ")I";
                 else if (returnSymbol.getType().equals("int[]"))
-                    functionHeader = functionHeader + ")[I";
+                    headerFunc = headerFunc + ")[I";
                 else
-                    functionHeader = functionHeader + ")V";
+                    headerFunc = headerFunc + ")V";
 
-            } else { // from external module
+            } else {
                 if (returnType.equals("void")) {
-                    functionHeader = functionHeader + ")V";
+                    headerFunc = headerFunc + ")V";
                 } else if (returnType.equals("int") || returnType.equals("boolean")) {
-                    functionHeader = functionHeader + ")I";
+                    headerFunc = headerFunc + ")I";
                 } else if (returnType.equals("int[]")) {
-                    functionHeader = functionHeader + ")[I";
+                    headerFunc = headerFunc + ")[I";
                 }
             }
-        }
+        } else
+            headerFunc = headerFunc + ")V";
 
-        else
-            functionHeader = functionHeader + ")V";
-
-        return functionHeader;
+        return headerFunc;
     }
 
-    private static String header(Table methodTable, SimpleNode methodNode, String methodName) {
-
-        ASTMethodDeclaration cast_node = (ASTMethodDeclaration) methodNode;
-
-        String functionHeader = methodName + "(";
-
-        if (cast_node.jjtGetChild(1).getId() == JavammTreeConstants.JJTMETHODARGUMENTS) {
-            ASTMethodArguments first_arg = (ASTMethodArguments) cast_node.jjtGetChild(1);
-
-            if (first_arg.jjtGetNumChildren() > 0) {
-                ASTType type_node = (ASTType) first_arg.jjtGetChild(0);
-
-                if (type_node.type.equals("int") && type_node.isArray) {
-                    functionHeader = functionHeader + "[I";
-                }
-
-                if (type_node.type.equals("int") && !type_node.isArray) {
-                    functionHeader = functionHeader + "I";
-                }
-
-                if (type_node.type.equals("boolean")) {
-                    functionHeader = functionHeader + "Z";
-                }
-
-                if (first_arg.jjtGetNumChildren() > 1) {
-                    for (int i = 1; i < first_arg.jjtGetNumChildren(); i++) {
-                        ASTMethodArgumentPiece child = (ASTMethodArgumentPiece) first_arg.jjtGetChild(i);
-
-                        ASTType other_type = (ASTType) child.jjtGetChild(0);
-
-                        if (other_type.type.equals("int") && other_type.isArray) {
-                            functionHeader = functionHeader + "[I";
-                        }
-
-                        if (other_type.type.equals("int") && !other_type.isArray) {
-                            functionHeader = functionHeader + "I";
-                        }
-
-                        if (other_type.type.equals("boolean")) {
-                            functionHeader = functionHeader + "Z";
-                        }
-
-                    }
-                }
-            }
-        }
-
-        if (table.getMethodsTable().containsKey(methodName)) {
-            Symbol s1 = table.getMethodsTable().get(methodName);
-
-            if (s1.type.equals("void")) {
-                functionHeader = functionHeader + ")V";
-            }
-
-            else if (s1.type.equals("int") || s1.type.equals("boolean")) {
-                functionHeader = functionHeader + ")I";
-            }
-
-            else if (s1.type.equals("int[]")) {
-                functionHeader = functionHeader + ")[I";
-            }
-
-            else {
-                functionHeader = functionHeader + ")";
-            }
-        }
-
-        return functionHeader;
-
-    }
-
-    private static void thisCallProcedure(Node child, PrintWriter file, int loop_nr, Table methodsTable) {
+    private static void callProcedure(Node child, PrintWriter output, int loop_num, Table methodsTable) {
         ASTThisCall thisCall = (ASTThisCall) child;
 
         if (thisCall.jjtGetNumChildren() > 0) {
-            // this.funct()
-            ASTFunctionCall conveniece = new ASTFunctionCall(Integer.MAX_VALUE);
+            ASTFunctionCall call = new ASTFunctionCall(Integer.MAX_VALUE);
 
             if (thisCall.jjtGetChild(0).jjtGetNumChildren() > 0) {
                 if (thisCall.jjtGetChild(0).jjtGetChild(0).getId() == JavammTreeConstants.JJTARGUMENTLIST) {
-                    conveniece.jjtAddChild(thisCall.jjtGetChild(0).jjtGetChild(0), 0);
+                    call.jjtAddChild(thisCall.jjtGetChild(0).jjtGetChild(0), 0);
                 }
             }
+            call.module = thisCall.module;
+            call.function = "this";
 
-            conveniece.function = "this";
-            conveniece.module = thisCall.module;
-
-            methodCallToJvm(file, methodsTable, conveniece, "void");
+            methodToJvm(output, methodsTable, call, "void");
         }
     }
 
-    private static void handleTerms(Node term, PrintWriter file, int loop_nr, Table methodsTable) {
-        // single term
+    private static void handleTerm(Node term, PrintWriter output, int loop_num, Table methodsTable) {
         if (term.jjtGetNumChildren() == 0) {
-            ASTTerm term1_cast = (ASTTerm) term;
-            termToJvm(file, methodsTable, term1_cast);
-        }
-
-        else {
-
-            // this.something
+            ASTTerm first_cast = (ASTTerm) term;
+            termToJvm(output, methodsTable, first_cast);
+        } else {
             if (term.jjtGetChild(0).getId() == JavammTreeConstants.JJTTHISCALL) {
-                thisCallProcedure(term.jjtGetChild(0), file, loop_nr, methodsTable);
+                callProcedure(term.jjtGetChild(0), output, loop_num, methodsTable);
             }
 
-            // variable.something
             if (term.jjtGetChild(0).getId() == JavammTreeConstants.JJTEXPRESSIONMETHOD) {
                 if (term.jjtGetChild(0).jjtGetChild(0).getId() == JavammTreeConstants.JJTMETHODS) {
                     ASTTerm term_cast = (ASTTerm) term;
@@ -1065,22 +856,21 @@ public class CodeGenerator {
                     String module = method.module;
 
                     if (module.equals("length")) {
-                        file.println("  arraylength");
+                        output.println("  arraylength");
                     }
 
                     else {
-                        ASTFunctionCall conveniece = new ASTFunctionCall(0);
+                        ASTFunctionCall call = new ASTFunctionCall(0);
 
                         if (method.jjtGetNumChildren() > 0) {
                             if (method.jjtGetChild(0).getId() == JavammTreeConstants.JJTARGUMENTLIST) {
-                                conveniece.jjtAddChild(method.jjtGetChild(0), 0);
+                                call.jjtAddChild(method.jjtGetChild(0), 0);
                             }
                         }
+                        call.module = module;
+                        call.function = function;
 
-                        conveniece.function = function;
-                        conveniece.module = module;
-
-                        methodCallToJvm(file, methodsTable, conveniece, "void");
+                        methodToJvm(output, methodsTable, call, "void");
                     }
                 }
             }
@@ -1088,29 +878,92 @@ public class CodeGenerator {
         }
     }
 
-    private static void writeStackNumber(Table methodsTable, String methodName, PrintWriter file) {
-        int localsNr = methodsTable.getNumLocalVariables();
-
-        file.println("  .limit stack " + 999);
-
-        if (localsNr != 0) {
-            file.println("  .limit locals " + localsNr);
-        }
-    }
-
     private static Table getMethodTable(String methodName) {
         Table methodsTable = new Table();
 
-        HashMap<String, Symbol> vars = table.getLocalVariablesTable().get(methodName);
-        HashMap<String, Symbol> params = table.getParametersTable().get(methodName);
+        HashMap<String, Symbol> params = symbolTable.getParametersTable().get(methodName);
 
-        Symbol s1 = table.getReturnTable().get(methodName);
+        HashMap<String, Symbol> vars = symbolTable.getLocalVariablesTable().get(methodName);
 
-        methodsTable.setParameters(params);
+        Symbol _s = symbolTable.getReturnTable().get(methodName);
+
         methodsTable.setVariables(vars);
-        methodsTable.setReturn(s1);
+        methodsTable.setParameters(params);
+        methodsTable.setReturn(_s);
 
         return methodsTable;
     }
 
+    private static void writeStackNumber(Table methodsTable, String methodName, PrintWriter output) {
+        int localsNr = methodsTable.getNumLocalVariables();
+
+        output.println("  .limit stack " + 999);
+
+        if (localsNr != 0) {
+            output.println("  .limit locals " + localsNr);
+        }
+    }
+
+    public static void printAllSymbolTables(SymbolTable table) {
+
+        System.out.println("METHODS NAME:");
+
+        for (String name : table.getMethodsTable().keySet()) {
+            String value = table.getMethodsTable().get(name).getType();
+            System.out.println(name + " " + value);
+        }
+
+        System.out.println("\nMETHOD PARAMETERS:");
+
+        for (String name : table.getParametersTable().keySet()) {
+            HashMap<String, Symbol> temp = table.getParametersTable().get(name);
+
+            System.out.println("Method " + name + ":");
+
+            for (String key : temp.keySet()) {
+                Symbol _s = temp.get(key);
+                System.out.println(_s.getName() + " " + _s.getType());
+            }
+
+            System.out.println();
+        }
+
+        System.out.println("\nCLASS VARIABLES:");
+
+        for (String name : table.getClassVariablesTable().keySet()) {
+
+            table.getClassVariablesTable().get(name).setRegister(registerStack);
+            registerStack++;
+
+            String value = table.getClassVariablesTable().get(name).getType();
+            System.out.println(name + " " + value);
+        }
+
+        System.out.println("\nLOCAL VARIABLES:");
+
+        for (String name : table.getLocalVariablesTable().keySet()) {
+            HashMap<String, Symbol> temp = table.getLocalVariablesTable().get(name);
+
+            System.out.println("Method " + name + ":");
+
+            for (String key : temp.keySet()) {
+                Symbol _s = temp.get(key);
+
+                temp.get(key).setRegister(registerStack);
+                registerStack++;
+
+                System.out.println(_s.getName() + " " + _s.getType() + " register:" + temp.get(key).getRegister());
+            }
+
+            System.out.println();
+        }
+
+        System.out.println("\nMETHODS RETURN:");
+
+        for (String name : table.getReturnTable().keySet()) {
+            String symbolValue = table.getReturnTable().get(name).getType();
+            String returnValue = table.getReturnTable().get(name).getName();
+            System.out.println(name + " " + returnValue + " " + symbolValue);
+        }
+    }
 }
