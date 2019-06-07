@@ -21,7 +21,6 @@ while (num < 1) {
  return num_aux;
  }
  public static void main(String[] a){
- io.println(new Factorial().ComputeFac(10)); //assuming the existence
- // of the classfile io.class
+    io.println(new Factorial().ComputeFac(10));
  }
 }

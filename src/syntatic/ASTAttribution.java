@@ -9,7 +9,7 @@ public class ASTAttribution extends SimpleNode {
     super(p, id);
   }
 
-  public void otherSemanticAnalysis() throws SemanticException {
+  public void semanticAnalysis() throws SemanticException {
 
     SimpleNode first = (SimpleNode) jjtGetChild(0);
     SimpleNode second = (SimpleNode) jjtGetChild(1);
@@ -20,7 +20,7 @@ public class ASTAttribution extends SimpleNode {
       second = (SimpleNode) second.jjtGetChild(0);
     }
     if (!first.getType().equals(second.getType())) {
-      throw new SemanticException("The variables " + first + " and " + second + " should have the same type.");
+      throw new SemanticException("The variables <" + first + "> and <" + second + "> should have the same type.");
     }
   }
 

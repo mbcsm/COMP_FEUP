@@ -1,4 +1,4 @@
 cd bin
 # java Javamm ../testFiles/Factorial.jmm
 
-java Javamm ../testFiles/$1.jmm
+java Javamm ../testFiles/$1

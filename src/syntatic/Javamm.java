@@ -2170,8 +2170,8 @@ public class Javamm/* @bgen(jjtree) */ implements JavammTreeConstants, JavammCon
     boolean jjtc000 = true;
     jjtree.openNodeScope(jjtn000);
     try {
-      ParseException e = generateParseException(); // generate the exception object.
-      System.out.println(e.toString()); // print the error message
+      ParseException e = generateParseException();
+      System.out.println(e.toString());
       Token t;
       do {
         t = getNextToken();
@@ -2189,8 +2189,8 @@ public class Javamm/* @bgen(jjtree) */ implements JavammTreeConstants, JavammCon
     jjtree.openNodeScope(jjtn000);
     try {
       boolean brace = false;
-      ParseException e = generateParseException(); // generate the exception object.
-      System.out.println(e.toString()); // print the error message
+      ParseException e = generateParseException();
+      System.out.println(e.toString());
       Token t;
       do {
         t = getNextToken();
