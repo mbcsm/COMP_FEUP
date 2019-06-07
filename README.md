@@ -15,12 +15,12 @@ GLOBAL Grade of the project: 16
 
 
 
-** SUMMARY: (Describe what your tool does and its main features.)
+** SUMMARY:
 
 Our tool features a compiler capable of generating Java bytecode, a low level language capable of operation the Java Virtual Machine from Java--, a high level programing language. The main features of our compiler are its ability to perform syntatic analysis, semantic analysis and generating low level code (jasmin readable).
 
 
-** EXECUTE: (indicate how to run your tool)
+** EXECUTE:
 
 To execute an user must follow the normal indications:
 
@@ -44,7 +44,7 @@ Inside base directory
 $ sh tree.sh <FILENAME>
 ```
 
-**DEALING WITH SYNTACTIC ERRORS: (Describe how the syntactic error recovery of your tool does work. Does it exit after the first error?)
+**DEALING WITH SYNTACTIC ERRORS:
 
 Our initial error treatment was done by Bernardo Santos. He did that and never contacted the group again, so we don't know the extent of his work - explaining low contribution.
 
@@ -52,27 +52,27 @@ The work was later on made to skip while loops and other syntactic errors. Our t
 
 
 
-**SEMANTIC ANALYSIS: (Refer the semantic rules implemented by your tool.)
+**SEMANTIC ANALYSIS:
 
 We check that if a variable is going to be assigned to another, they must have the same type (except for int and array types)
 
 
-**INTERMEDIATE REPRESENTATIONS (IRs): (for example, when applicable, briefly describe the HLIR (high-level IR) and the LLIR (low-level IR) used, if your tool includes an LLIR with structure different from the HLIR)
+**INTERMEDIATE REPRESENTATIONS (IRs): 
 
 Our tool prints the AST, where only CAPITAL letters refer to the following children. For example, if in a certain line there is EXPRESSION + EXPRESSION, we may expect that the two children of this node will descend the respective EXPRESSION. The same goes for STATEMENT and others.
 
 
-**CODE GENERATION: (when applicable, describe how the code generation of your tool works and identify the possible problems your tool has regarding code generation.)
+**CODE GENERATION:
 
 If there aren't any semantic errors, it is generated the jasmin code for the jmm file. The code generation uses the AST as the basis with support from the symbol tables, mostly for variable type checks. While going through it, it the generates the appropriate code.
 
 
-**OVERVIEW: (refer the approach used in your tool, the main algorithms, the third-party tools and/or packages, etc.)
+**OVERVIEW:
 
 In the end, we feel like we have made almost fully functional tool with a lot of capabilities, however, if given the possibility and time, we would definitely taken a different approach for code structure, since after we realised that there was another way, it was too late for a refactor. Array code generation is missing.
 
 
-**TASK DISTRIBUTION: (Identify the set of tasks done by each member of the project.)
+**TASK DISTRIBUTION:
 
 Diogo Moreira and Manuel Mointeiro did everything untill the semantic analysis. 
 We started the semantic analysis but didn't have time to make it very thorough. 
@@ -80,11 +80,11 @@ João Mendes did everything from there, mainly JVM.
 
 As refered before Bernardo Santos only did the a small part in error treatment in the grammar analysis.
 
-**PROS: (Identify the most positive aspects of your tool)
+**PROS:
 
 It's simple but what it does, it does well.
 
 
-**CONS: (Identify the most negative aspects of your tool)
+**CONS:
 
 Incomplete parts, mainly arrays in code generation.
